@@ -1,0 +1,62 @@
+{
+  "name": "nnyj-syntax-highlight",
+  "displayName": "NNYJ Syntax Highlight",
+  "description": "Custom TextMate grammar injections for Markdown and Terraform HCL",
+  "version": "0.0.1",
+  "publisher": "nnyj",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nnyj/nnyj-syntax-highlight"
+  },
+  "icon": "images/icon.png",
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "grammars": [
+      {
+        "scopeName": "markdown.arrow",
+        "path": "./syntaxes/markdown.arrow.json",
+        "injectTo": ["text.html.markdown"]
+      },
+      {
+        "scopeName": "markdown.bracket",
+        "path": "./syntaxes/markdown.bracket.json",
+        "injectTo": ["text.html.markdown"]
+      },
+      {
+        "scopeName": "markdown.colon",
+        "path": "./syntaxes/markdown.colon.json",
+        "injectTo": ["text.html.markdown"]
+      },
+      {
+        "scopeName": "markdown.comment",
+        "path": "./syntaxes/markdown.comment.json",
+        "injectTo": ["text.html.markdown"]
+      },
+      {
+        "scopeName": "markdown.highlight",
+        "path": "./syntaxes/markdown.highlight.json",
+        "injectTo": ["text.html.markdown"]
+      },
+      {
+        "scopeName": "yaml.heredoc.hcl",
+        "path": "./syntaxes/yaml.heredoc.hcl.json",
+        "injectTo": ["source.hcl.terraform"],
+        "embeddedLanguages": {
+          "source.yaml": "yaml"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "package": "npx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.2.0"
+  }
+}

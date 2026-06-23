@@ -1,0 +1,27 @@
+{
+  "scopeName": "yaml.heredoc.hcl",
+  "injectionSelector": "L:source.hcl.terraform -comment",
+  "patterns": [
+    {
+      "begin": "<<-?\\s*(YAML|yaml)\\b.*$",
+      "beginCaptures": {
+        "0": {
+          "name": "keyword.control.heredoc.tag.hcl"
+        }
+      },
+      "end": "^(\\s*)(YAML|yaml)\\b\\s*$",
+      "endCaptures": {
+        "0": {
+          "name": "keyword.control.heredoc.tag.hcl"
+        }
+      },
+      "contentName": "source.yaml",
+      "patterns": [
+        {
+          "include": "source.yaml"
+        }
+      ],
+      "name": "meta.embedded.block.yaml"
+    }
+  ]
+}

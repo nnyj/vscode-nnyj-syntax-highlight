@@ -1,0 +1,15 @@
+{
+  "scopeName": "markdown.comment",
+  "injectionSelector": "L:text.html.markdown",
+  "patterns": [
+    {
+      "include": "#arbitrary-string"
+    }
+  ],
+  "repository": {
+    "arbitrary-string": {
+      "name": "markdown.comment",
+      "match": "^;.*|^\\/\\/.*"
+    }
+  }
+}

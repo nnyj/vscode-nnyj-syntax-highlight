@@ -1,0 +1,48 @@
+{
+  "scopeName": "markdown.highlight",
+  "injectionSelector": "R:text.html.markdown",
+  "patterns": [
+    {
+      "include": "#arbitrary-string"
+    }
+  ],
+  "repository": {
+    "arbitrary-string": {
+      "begin": "(?x)(?<open>(==(?=\\w)|(?<!\\w)==|(?<!\\w)\\b__))(?=\\S)(?=(<[^>]*+>| (?<raw>`+)([^`]|(?!(?<!`)\\k<raw>(?!`))`)*+\\k<raw>| \\\\[\\`*_{}\\[\\]()#.!+\\->]?+| \\[((?<square>[^\\[\\]\\\\]| \\\\. | \\[ \\g<square>*+ \\]    )*+\\](([ ]?\\[[^\\]]*+\\])| (\\([ \\t]*+<?(.*?)>?[ \\t]*+((?<title>['\"])(.*?)\\k<title>)?\\))))| (?!(?<=\\S)\\k<open>).)++(?<=\\S)(?=__\\b|==)\\k<open>)",
+      "end": "(?<=\\S)(\\1)",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.highlight.markdown"
+        }
+      },
+      "name": "markdown.highlight",
+      "patterns": [
+        {
+          "applyEndPatternLast": 1,
+          "begin": "(?=<[^>]*?>)",
+          "end": "(?<=>)",
+          "patterns": [
+            {
+              "include": "text.html.derivative"
+            }
+          ]
+        },
+        { "include": "#escape" },
+        { "include": "#ampersand" },
+        { "include": "#bracket" },
+        { "include": "#raw" },
+        { "include": "#bold" },
+        { "include": "#italic" },
+        { "include": "#image-inline" },
+        { "include": "#link-inline" },
+        { "include": "#link-inet" },
+        { "include": "#link-email" },
+        { "include": "#image-ref" },
+        { "include": "#link-ref-literal" },
+        { "include": "#link-ref" },
+        { "include": "#link-ref-shortcut" },
+        { "include": "#strikethrough" }
+      ]
+    }
+  }
+}

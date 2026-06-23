@@ -1,0 +1,24 @@
+{
+  "scopeName": "markdown.colon",
+  "injectionSelector": "text.html.markdown",
+  "patterns": [
+    {
+      "include": "#colon"
+    },
+    {
+      "include": "#colon-space"
+    }
+  ],
+  "repository": {
+    "colon": {
+      "name": "markdown.colon",
+      "match": "^[^|\\[\\]:]+:(?!\\\\)(?!\\/)",
+      "comment": "colon-from-start"
+    },
+    "colon-space": {
+      "name": "markdown.colon",
+      "match": "([^`'\"|:]*:)\\s",
+      "comment": "any-colon-with-space-on-right"
+    }
+  }
+}
