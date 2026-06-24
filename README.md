@@ -64,7 +64,7 @@ Add `editor.tokenColorCustomizations` to your `settings.json`:
 {
   "editor.tokenColorCustomizations": {
     "textMateRules": [
-      { "scope": "markdown.highlight", "settings": { "foreground": "#f7f33b" } },
+      { "scope": "markdown.highlight", "settings": { "foreground": "#f7f42e" } },
       { "scope": "markdown.comment", "settings": { "foreground": "#57A64A" } },
       { "scope": "markdown.colon", "settings": { "foreground": "#9CDCFE" } },
       { "scope": "markdown.bracket", "settings": { "foreground": "#ceba78" } },
