@@ -2,6 +2,8 @@
 
 Custom TextMate grammar injections for VS Code.
 
+![sample](images/syntax-highlight-sample.png)
+
 ## Markdown Injections
 
 | Grammar | What it highlights |
