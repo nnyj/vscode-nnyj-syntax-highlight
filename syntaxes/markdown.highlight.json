@@ -1,6 +1,6 @@
 {
   "scopeName": "markdown.highlight",
-  "injectionSelector": "R:text.html.markdown",
+  "injectionSelector": "R:text.html.markdown - meta.embedded - markup.fenced_code",
   "patterns": [
     {
       "include": "#arbitrary-string"

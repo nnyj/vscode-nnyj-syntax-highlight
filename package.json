@@ -43,7 +43,7 @@
         "path": "./syntaxes/markdown.highlight.json",
         "injectTo": ["text.html.markdown"]
       },
-      {
+{
         "scopeName": "yaml.heredoc.hcl",
         "path": "./syntaxes/yaml.heredoc.hcl.json",
         "injectTo": ["source.hcl.terraform"],

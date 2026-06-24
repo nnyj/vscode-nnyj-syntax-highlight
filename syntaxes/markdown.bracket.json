@@ -1,15 +1,28 @@
 {
   "scopeName": "markdown.bracket",
-  "injectionSelector": "L:text.html.markdown",
+  "injectionSelector": "L:text.html.markdown - meta.embedded - markup.fenced_code",
   "patterns": [
     {
-      "include": "#arbitrary-string"
+      "include": "#bracket-pair"
     }
   ],
   "repository": {
-    "arbitrary-string": {
-      "name": "markdown.bracket",
-      "match": "(\\(.*?\\))"
+    "bracket-pair": {
+      "begin": "\\(",
+      "end": "\\)",
+      "beginCaptures": {
+        "0": { "name": "markdown.bracket" }
+      },
+      "endCaptures": {
+        "0": { "name": "markdown.bracket" }
+      },
+      "contentName": "markdown.bracket",
+      "patterns": [
+        { "include": "markdown.highlight" },
+        { "include": "text.html.markdown#bold" },
+        { "include": "text.html.markdown#italic" },
+        { "include": "text.html.markdown#strikethrough" }
+      ]
     }
   }
 }

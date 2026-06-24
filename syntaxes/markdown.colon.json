@@ -1,6 +1,6 @@
 {
   "scopeName": "markdown.colon",
-  "injectionSelector": "text.html.markdown",
+  "injectionSelector": "text.html.markdown - meta.embedded - markup.fenced_code",
   "patterns": [
     {
       "include": "#colon"
@@ -12,12 +12,12 @@
   "repository": {
     "colon": {
       "name": "markdown.colon",
-      "match": "^[^|\\[\\]:]+:(?!\\\\)(?!\\/)",
+      "match": "^[^|\\[\\]:=*]+:(?!\\\\)(?!\\/)",
       "comment": "colon-from-start"
     },
     "colon-space": {
       "name": "markdown.colon",
-      "match": "([^`'\"|:]*:)\\s",
+      "match": "([^`'\"|:=*]*:)\\s",
       "comment": "any-colon-with-space-on-right"
     }
   }
