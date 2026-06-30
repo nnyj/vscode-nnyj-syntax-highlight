@@ -41,6 +41,10 @@ Unlabeled ` ``` ` blocks can be colored via settings. The 3-segment `markup.fenc
 }
 ```
 
+## Shell Comment Coloring
+
+`#` comment lines inside fenced bash/sh/zsh blocks are colored green (`#6A9955`) via programmatic decoration. This works around a VS Code limitation where the TextMate `begin` pattern `(^|\G)(\s*)(.*)` consumes the first content line before `source.shell` can tokenize it.
+
 ## Table Decorations
 
 Pipe-delimited markdown tables get visual styling in the editor:
@@ -66,13 +70,6 @@ Requires disabling semantic highlighting for TextMate grammars to take effect:
     "editor.semanticHighlighting.enabled": false
   }
 }
-```
-
-## Install
-
-```sh
-npm run package
-code --install-extension nnyj-syntax-highlight-0.0.3.vsix
 ```
 
 ## Customizing Colors
