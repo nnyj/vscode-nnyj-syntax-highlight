@@ -1,6 +1,6 @@
 # NNYJ Syntax Highlight
 
-Custom TextMate grammar injections for VS Code.
+Custom TextMate grammar injections and table decorations for VS Code.
 
 ![sample](images/syntax-highlight-sample.png)
 
@@ -40,6 +40,17 @@ Unlabeled ` ``` ` blocks can be colored via settings. The 3-segment `markup.fenc
   "settings": { "foreground": "#d4d4d4" }
 }
 ```
+
+## Table Decorations
+
+Pipe-delimited markdown tables get visual styling in the editor:
+
+- Header row: bold + background highlight + bottom border
+- Separator row: faded to near-invisible
+- Data rows: bottom border
+- Pipe characters: dimmed
+
+Works with both indented and non-indented tables. Requires header + separator + at least one data row.
 
 ## Terraform HCL Injection
 

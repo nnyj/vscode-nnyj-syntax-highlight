@@ -1,8 +1,8 @@
 {
   "name": "nnyj-syntax-highlight",
   "displayName": "NNYJ Syntax Highlight",
-  "description": "Custom TextMate grammar injections for Markdown and Terraform HCL",
-  "version": "0.0.3",
+  "description": "Custom TextMate grammar injections and table decorations for Markdown and Terraform HCL",
+  "version": "0.0.4",
   "publisher": "nnyj",
   "engines": {
     "vscode": "^1.60.0"
@@ -16,6 +16,10 @@
   "categories": [
     "Programming Languages"
   ],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "main": "./src/extension.js",
   "contributes": {
     "grammars": [
       {
