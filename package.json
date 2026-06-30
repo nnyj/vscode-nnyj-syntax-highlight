@@ -2,7 +2,7 @@
   "name": "nnyj-syntax-highlight",
   "displayName": "NNYJ Syntax Highlight",
   "description": "Custom TextMate grammar injections for Markdown and Terraform HCL",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "nnyj",
   "engines": {
     "vscode": "^1.60.0"
@@ -49,6 +49,17 @@
         "injectTo": ["source.hcl.terraform"],
         "embeddedLanguages": {
           "source.yaml": "yaml"
+        }
+      },
+      {
+        "scopeName": "markdown.fenced_fix",
+        "path": "./syntaxes/markdown.fenced_fix.json",
+        "injectTo": ["text.html.markdown"],
+        "embeddedLanguages": {
+          "meta.embedded.block.shellscript": "shellscript",
+          "meta.embedded.block.dockerfile": "dockerfile",
+          "meta.embedded.block.diff": "diff",
+          "meta.embedded.block.makefile": "makefile"
         }
       }
     ]

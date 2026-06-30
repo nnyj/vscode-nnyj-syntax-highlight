@@ -16,6 +16,12 @@ Custom TextMate grammar injections for VS Code.
 
 All markdown injections exclude `meta.embedded` and `markup.fenced_code` scopes to avoid interfering with syntax-highlighted code blocks.
 
+## Indented Fenced Code Block Fix
+
+Fenced code blocks inside list items lose syntax highlighting for bash/sh/zsh, dockerfile, makefile, diff. The markdown grammar's list handling consumes leading whitespace, so language grammars anchored to `^` fail. `markdown.fenced_fix` adds `\G` alongside `^` in critical patterns.
+
+Upstream: [vscode#194998](https://github.com/microsoft/vscode/issues/194998) (closed without fix, VSCode considers it a per-language-grammar problem)
+
 ## Fenced Code Block Coloring
 
 Unlabeled ` ``` ` blocks can be colored via settings. The 3-segment `markup.fenced_code` selector is intentional: language-specific scopes (4+ segments) override it for yml, bash, etc.
@@ -55,7 +61,7 @@ Requires disabling semantic highlighting for TextMate grammars to take effect:
 
 ```sh
 npm run package
-code --install-extension nnyj-syntax-highlight-0.0.1.vsix
+code --install-extension nnyj-syntax-highlight-0.0.3.vsix
 ```
 
 ## Customizing Colors
@@ -80,3 +86,4 @@ Add `editor.tokenColorCustomizations` to your `settings.json`:
 
 - Unlabeled ` ``` ` block coloring requires settings rules (above) since VSCode textMateRules don't support scope subtraction
 - Bold/italic/highlight work inside brackets, but other inline patterns (links, images) may not
+- Indented fenced block fix does not cover makefile `ifeq`/`ifdef`/`define`/`endif` blocks

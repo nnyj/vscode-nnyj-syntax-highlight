@@ -1,0 +1,204 @@
+{
+  "scopeName": "markdown.fenced_fix",
+  "injectionSelector": "L:text.html.markdown - meta.embedded",
+  "patterns": [
+    {"include": "#fenced_code_block_shell_fix"},
+    {"include": "#fenced_code_block_dockerfile_fix"},
+    {"include": "#fenced_code_block_diff_fix"},
+    {"include": "#fenced_code_block_makefile_fix"}
+  ],
+  "repository": {
+    "fenced_code_block_shell_fix": {
+      "begin": "(^|\\G)(\\s*)(`{3,}|~{3,})\\s*(?i:(shell|sh|bash|zsh|bashrc|bash_profile|bash_login|profile|bash_logout|.textmate_init|\\{\\.bash.+?\\})((\\s+|:|,|\\{|\\?)[^`]*)?$)",
+      "end": "(^|\\G)(\\2|\\s{0,3})(\\3)\\s*$",
+      "beginCaptures": {
+        "3": {"name": "punctuation.definition.markdown"},
+        "4": {"name": "fenced_code.block.language.markdown"},
+        "5": {"name": "fenced_code.block.language.attributes.markdown"}
+      },
+      "endCaptures": {
+        "3": {"name": "punctuation.definition.markdown"}
+      },
+      "name": "markup.fenced_code.block.markdown",
+      "patterns": [
+        {
+          "begin": "(^|\\G)(\\s*)(.*)",
+          "while": "(^|\\G)(?!\\s*([`~]{3,})\\s*$)",
+          "contentName": "meta.embedded.block.shellscript",
+          "patterns": [
+            {
+              "begin": "(?:(?!^[ \\t]*+$)(?:(?<=^until | until |\\tuntil |^while | while |\\twhile |^elif | elif |\\telif |^else | else |\\telse |^then | then |\\tthen |^do | do |\\tdo |^if | if |\\tif )|(?<=(?:^|\\G|;|\\||&|!|\\(|\\{|\\`)))(?:[ \\t]*+)(?!nocorrect\\W|nocorrect\\$|function\\W|function\\$|foreach\\W|foreach\\$|repeat\\W|repeat\\$|logout\\W|logout\\$|coproc\\W|coproc\\$|select\\W|select\\$|while\\W|while\\$|pushd\\W|pushd\\$|until\\W|until\\$|case\\W|case\\$|done\\W|done\\$|elif\\W|elif\\$|else\\W|else\\$|esac\\W|esac\\$|popd\\W|popd\\$|then\\W|then\\$|time\\W|time\\$|for\\W|for\\$|end\\W|end\\$|fi\\W|fi\\$|do\\W|do\\$|in\\W|in\\$|if\\W|if\\$))",
+              "end": "(?=;|\\||&|\\n|\\)|\\`|\\{|\\}|[ \\t]*#|\\])(?<!\\\\)",
+              "patterns": [{"include": "source.shell#typical_statements"}]
+            },
+            {
+              "begin": "(?<=^|\\G|;|&|[ \\t])(?:readonly|declare|typeset|export|local)(?=[ \\t]|;|&|$)",
+              "end": "(?=;|\\||&|\\n|\\)|\\`|\\{|\\}|[ \\t]*#|\\])(?<!\\\\)",
+              "name": "meta.statement.shell meta.expression.assignment.modified.shell",
+              "beginCaptures": {
+                "0": {"name": "storage.modifier.$0.shell"}
+              },
+              "patterns": [
+                {"match": "(?<!\\w)-\\w+\\b", "name": "string.unquoted.argument.shell constant.other.option.shell"},
+                {"include": "source.shell"}
+              ]
+            },
+            {"include": "source.shell"}
+          ]
+        }
+      ]
+    },
+
+    "fenced_code_block_dockerfile_fix": {
+      "begin": "(^|\\G)(\\s*)(`{3,}|~{3,})\\s*(?i:(dockerfile|Dockerfile|containerfile|Containerfile)((\\s+|:|,|\\{|\\?)[^`]*)?$)",
+      "end": "(^|\\G)(\\2|\\s{0,3})(\\3)\\s*$",
+      "beginCaptures": {
+        "3": {"name": "punctuation.definition.markdown"},
+        "4": {"name": "fenced_code.block.language.markdown"},
+        "5": {"name": "fenced_code.block.language.attributes.markdown"}
+      },
+      "endCaptures": {
+        "3": {"name": "punctuation.definition.markdown"}
+      },
+      "name": "markup.fenced_code.block.markdown",
+      "patterns": [
+        {
+          "begin": "(^|\\G)(\\s*)(.*)",
+          "while": "(^|\\G)(?!\\s*([`~]{3,})\\s*$)",
+          "contentName": "meta.embedded.block.dockerfile",
+          "patterns": [
+            {"captures": {"1": {"name": "keyword.other.special-method.dockerfile"}, "2": {"name": "keyword.other.special-method.dockerfile"}}, "match": "(?:^|\\G)\\s*\\b(?i:(FROM))\\b.*?\\b(?i:(AS))\\b"},
+            {"captures": {"1": {"name": "keyword.control.dockerfile"}, "2": {"name": "keyword.other.special-method.dockerfile"}}, "match": "(?:^|\\G)\\s*(?i:(ONBUILD)\\s+)?(?i:(ADD|ARG|CMD|COPY|ENTRYPOINT|ENV|EXPOSE|FROM|HEALTHCHECK|LABEL|MAINTAINER|RUN|SHELL|STOPSIGNAL|USER|VOLUME|WORKDIR))\\s"},
+            {"captures": {"1": {"name": "keyword.operator.dockerfile"}, "2": {"name": "keyword.other.special-method.dockerfile"}}, "match": "(?:^|\\G)\\s*(?i:(ONBUILD)\\s+)?(?i:(CMD|ENTRYPOINT))\\s"},
+            {"captures": {"1": {"name": "punctuation.whitespace.comment.leading.dockerfile"}, "2": {"name": "comment.line.number-sign.dockerfile"}, "3": {"name": "punctuation.definition.comment.dockerfile"}}, "match": "(?:^|\\G)(\\s*)((#).*$\\n?)"},
+            {"include": "source.dockerfile"}
+          ]
+        }
+      ]
+    },
+
+    "fenced_code_block_diff_fix": {
+      "begin": "(^|\\G)(\\s*)(`{3,}|~{3,})\\s*(?i:(patch|diff|rej)((\\s+|:|,|\\{|\\?)[^`]*)?$)",
+      "end": "(^|\\G)(\\2|\\s{0,3})(\\3)\\s*$",
+      "beginCaptures": {
+        "3": {"name": "punctuation.definition.markdown"},
+        "4": {"name": "fenced_code.block.language.markdown"},
+        "5": {"name": "fenced_code.block.language.attributes.markdown"}
+      },
+      "endCaptures": {
+        "3": {"name": "punctuation.definition.markdown"}
+      },
+      "name": "markup.fenced_code.block.markdown",
+      "patterns": [
+        {
+          "begin": "(^|\\G)(\\s*)(.*)",
+          "while": "(^|\\G)(?!\\s*([`~]{3,})\\s*$)",
+          "contentName": "meta.embedded.block.diff",
+          "patterns": [
+            {"captures": {"1": {"name": "punctuation.definition.separator.diff"}}, "match": "(?:^|\\G)((\\*{15})|(={67})|(-{3}))$\\n?", "name": "meta.separator.diff"},
+            {"match": "(?:^|\\G)\\d+(,\\d+)*(a|d|c)\\d+(,\\d+)*$\\n?", "name": "meta.diff.range.normal"},
+            {"captures": {"1": {"name": "punctuation.definition.range.diff"}, "2": {"name": "meta.toc-list.line-number.diff"}, "3": {"name": "punctuation.definition.range.diff"}}, "match": "(?:^|\\G)(@@)\\s*(.+?)\\s*(@@)($\\n?)?", "name": "meta.diff.range.unified"},
+            {"captures": {"3": {"name": "punctuation.definition.range.diff"}, "4": {"name": "punctuation.definition.range.diff"}, "6": {"name": "punctuation.definition.range.diff"}, "7": {"name": "punctuation.definition.range.diff"}}, "match": "(?:^|\\G)(((-{3}) .+ (-{4}))|((\\*{3}) .+ (\\*{4})))$\\n?", "name": "meta.diff.range.context"},
+            {"match": "(?:^|\\G)diff --git a/.*$\\n?", "name": "meta.diff.header.git"},
+            {"match": "(?:^|\\G)diff (-|\\S+\\s+\\S+).*$\\n?", "name": "meta.diff.header.command"},
+            {"captures": {"4": {"name": "punctuation.definition.from-file.diff"}, "6": {"name": "punctuation.definition.from-file.diff"}, "7": {"name": "punctuation.definition.from-file.diff"}}, "match": "((?:^|\\G)(((-{3}) .+)|((\\*{3}) .+))$\\n?|(?:^|\\G)(={4}) .+(?= - ))", "name": "meta.diff.header.from-file"},
+            {"captures": {"2": {"name": "punctuation.definition.to-file.diff"}, "3": {"name": "punctuation.definition.to-file.diff"}, "4": {"name": "punctuation.definition.to-file.diff"}}, "match": "((?:^|\\G)(\\+{3}) .+$\\n?| (-) .* (={4})$\\n?)", "name": "meta.diff.header.to-file"},
+            {"captures": {"3": {"name": "punctuation.definition.inserted.diff"}, "6": {"name": "punctuation.definition.inserted.diff"}}, "match": "(?:^|\\G)(((>)( .*)?)|((\\+).*))$\\n?", "name": "markup.inserted.diff"},
+            {"captures": {"1": {"name": "punctuation.definition.changed.diff"}}, "match": "(?:^|\\G)(!).*$\\n?", "name": "markup.changed.diff"},
+            {"captures": {"3": {"name": "punctuation.definition.deleted.diff"}, "6": {"name": "punctuation.definition.deleted.diff"}}, "match": "(?:^|\\G)(((<)( .*)?)|((-).*))$\\n?", "name": "markup.deleted.diff"},
+            {"begin": "(?:^|\\G)(#)", "captures": {"1": {"name": "punctuation.definition.comment.diff"}}, "end": "\\n", "name": "comment.line.number-sign.diff"},
+            {"match": "(?:^|\\G)index [0-9a-f]{7,40}\\.\\.[0-9a-f]{7,40}.*$\\n?", "name": "meta.diff.index.git"},
+            {"captures": {"1": {"name": "punctuation.separator.key-value.diff"}, "2": {"name": "meta.toc-list.file-name.diff"}}, "match": "(?:^|\\G)Index(:) (.+)$\\n?", "name": "meta.diff.index"},
+            {"match": "(?:^|\\G)Only in .*: .*$\\n?", "name": "meta.diff.only-in"}
+          ]
+        }
+      ]
+    },
+
+    "fenced_code_block_makefile_fix": {
+      "begin": "(^|\\G)(\\s*)(`{3,}|~{3,})\\s*(?i:(Makefile|makefile|GNUmakefile|OCamlMakefile|make)((\\s+|:|,|\\{|\\?)[^`]*)?$)",
+      "end": "(^|\\G)(\\2|\\s{0,3})(\\3)\\s*$",
+      "beginCaptures": {
+        "3": {"name": "punctuation.definition.markdown"},
+        "4": {"name": "fenced_code.block.language.markdown"},
+        "5": {"name": "fenced_code.block.language.attributes.markdown"}
+      },
+      "endCaptures": {
+        "3": {"name": "punctuation.definition.markdown"}
+      },
+      "name": "markup.fenced_code.block.markdown",
+      "patterns": [
+        {
+          "begin": "(^|\\G)(\\s*)(.*)",
+          "while": "(^|\\G)(?!\\s*([`~]{3,})\\s*$)",
+          "contentName": "meta.embedded.block.makefile",
+          "patterns": [
+            {
+              "begin": "(?:^|\\G)(?!\\t)([^:]*)(:)(?!=)",
+              "beginCaptures": {
+                "1": {
+                  "patterns": [
+                    {"captures": {"1": {"name": "support.function.target.$1.makefile"}}, "match": "^\\s*(\\.(PHONY|SUFFIXES|DEFAULT|PRECIOUS|INTERMEDIATE|SECONDARY|SECONDEXPANSION|DELETE_ON_ERROR|IGNORE|LOW_RESOLUTION_TIME|SILENT|EXPORT_ALL_VARIABLES|NOTPARALLEL|ONESHELL|POSIX))\\s*$"},
+                    {"begin": "(?=\\S)", "end": "(?=\\s|$)", "name": "entity.name.function.target.makefile", "patterns": [{"include": "source.makefile#variables"}, {"match": "%", "name": "constant.other.placeholder.makefile"}]}
+                  ]
+                },
+                "2": {"name": "punctuation.separator.key-value.makefile"}
+              },
+              "end": "[^\\\\]$",
+              "name": "meta.scope.target.makefile",
+              "patterns": [
+                {"begin": "\\G", "end": "(?=[^\\\\])$", "name": "meta.scope.prerequisites.makefile", "patterns": [
+                  {"match": "\\\\\\n", "name": "constant.character.escape.continuation.makefile"},
+                  {"match": "%|\\*", "name": "constant.other.placeholder.makefile"},
+                  {"include": "source.makefile#comment"},
+                  {"include": "source.makefile#variables"}
+                ]}
+              ]
+            },
+            {
+              "begin": "(?:^|\\G)\\t([+\\-@]*)",
+              "beginCaptures": {"1": {"name": "keyword.control.$1.makefile"}},
+              "end": "[^\\\\]$",
+              "name": "meta.scope.recipe.makefile",
+              "patterns": [
+                {"match": "\\\\\\n", "name": "constant.character.escape.continuation.makefile"},
+                {"include": "source.makefile#variables"}
+              ]
+            },
+            {
+              "begin": "(?:^|\\G)[ ]*([s\\-]?include)\\b",
+              "beginCaptures": {"1": {"name": "keyword.control.include.makefile"}},
+              "end": "$",
+              "patterns": [{"include": "source.makefile#comment"}, {"include": "source.makefile#variables"}, {"match": "%", "name": "constant.other.placeholder.makefile"}]
+            },
+            {
+              "begin": "(?:^|\\G)[ ]*(vpath)\\b",
+              "beginCaptures": {"1": {"name": "keyword.control.vpath.makefile"}},
+              "end": "$",
+              "patterns": [{"include": "source.makefile#comment"}, {"include": "source.makefile#variables"}, {"match": "%", "name": "constant.other.placeholder.makefile"}]
+            },
+            {
+              "begin": "(?:^|\\G)[ ]*(export)\\b",
+              "beginCaptures": {"1": {"name": "keyword.control.$1.makefile"}},
+              "end": "$",
+              "patterns": [{"include": "source.makefile#comment"}, {"include": "source.makefile#variable-assignment"}, {"match": "[^\\s]+", "name": "variable.other.makefile"}]
+            },
+            {
+              "begin": "(?:^|\\G)[ ]*(override|private)\\b",
+              "beginCaptures": {"1": {"name": "keyword.control.$1.makefile"}},
+              "end": "$",
+              "patterns": [{"include": "source.makefile#comment"}, {"include": "source.makefile#variable-assignment"}]
+            },
+            {
+              "begin": "(?:^|\\G)[ ]*(unexport|undefine)\\b",
+              "beginCaptures": {"1": {"name": "keyword.control.$1.makefile"}},
+              "end": "$",
+              "patterns": [{"include": "source.makefile#comment"}, {"match": "[^\\s]+", "name": "variable.other.makefile"}]
+            },
+            {"include": "source.makefile"}
+          ]
+        }
+      ]
+    }
+  }
+}
