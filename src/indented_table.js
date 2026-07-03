@@ -14,7 +14,6 @@ let headerType, rowType, sepType, pipeType;
 function createDecorationTypes() {
   disposeDecorationTypes();
   headerType = vscode.window.createTextEditorDecorationType({
-    backgroundColor: 'var(--vscode-editorGroupHeader-tabsBackground)',
     fontWeight: 'bold',
     ...BORDER,
   });

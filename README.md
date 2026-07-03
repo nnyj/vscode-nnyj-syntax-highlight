@@ -49,7 +49,7 @@ Unlabeled ` ``` ` blocks can be colored via settings. The 3-segment `markup.fenc
 
 Pipe-delimited markdown tables get visual styling in the editor:
 
-- Header row: bold + background highlight + bottom border
+- Header row: bold + bottom border
 - Separator row: faded to near-invisible
 - Data rows: bottom border
 - Pipe characters: dimmed
