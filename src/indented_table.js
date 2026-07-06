@@ -114,10 +114,13 @@ function register(context) {
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument(e => {
       const editor = vscode.window.activeTextEditor;
-      if (editor && e.document === editor.document) {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => update(editor), 100);
-      }
+      if (!editor || e.document !== editor.document) return;
+      const isExternalReload = e.contentChanges.length === 1
+        && e.contentChanges[0].range.start.isEqual(new vscode.Position(0, 0))
+        && e.contentChanges[0].range.end.line > 0;
+      if (isExternalReload) return;
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => update(editor), 100);
     })
   );
 
