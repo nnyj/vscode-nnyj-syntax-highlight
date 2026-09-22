@@ -1,11 +1,11 @@
 {
   "name": "nnyj-syntax-highlight",
   "displayName": "NNYJ Syntax Highlight",
-  "description": "Custom TextMate grammar injections and table decorations for Markdown and Terraform HCL",
-  "version": "0.0.8",
+  "description": "Custom syntax colors and inline Markdown rendering with headings, tables, math, and Mermaid.",
+  "version": "0.1.0",
   "publisher": "nnyj",
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.100.0"
   },
   "license": "MIT",
   "repository": {
@@ -14,9 +14,12 @@
   },
   "icon": "images/icon.png",
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Visualization"
   ],
-  "extensionKind": ["workspace"],
+  "extensionKind": [
+    "workspace"
+  ],
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": true
@@ -24,40 +27,59 @@
     "virtualWorkspaces": true
   },
   "activationEvents": [
-    "onLanguage:markdown"
+    "onLanguage:markdown",
+    "onLanguage:mdx",
+    "onLanguage:quarto",
+    "onLanguage:skill",
+    "onLanguage:markdoc",
+    "onLanguage:mdc",
+    "onLanguage:juliamarkdown",
+    "onLanguage:rmarkdown"
   ],
-  "main": "./src/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "grammars": [
       {
         "scopeName": "markdown.arrow",
         "path": "./syntaxes/markdown.arrow.json",
-        "injectTo": ["text.html.markdown"]
+        "injectTo": [
+          "text.html.markdown"
+        ]
       },
       {
         "scopeName": "markdown.bracket",
         "path": "./syntaxes/markdown.bracket.json",
-        "injectTo": ["text.html.markdown"]
+        "injectTo": [
+          "text.html.markdown"
+        ]
       },
       {
         "scopeName": "markdown.colon",
         "path": "./syntaxes/markdown.colon.json",
-        "injectTo": ["text.html.markdown"]
+        "injectTo": [
+          "text.html.markdown"
+        ]
       },
       {
         "scopeName": "markdown.comment",
         "path": "./syntaxes/markdown.comment.json",
-        "injectTo": ["text.html.markdown"]
+        "injectTo": [
+          "text.html.markdown"
+        ]
       },
       {
         "scopeName": "markdown.highlight",
         "path": "./syntaxes/markdown.highlight.json",
-        "injectTo": ["text.html.markdown"]
+        "injectTo": [
+          "text.html.markdown"
+        ]
       },
       {
         "scopeName": "yaml.heredoc.hcl",
         "path": "./syntaxes/yaml.heredoc.hcl.json",
-        "injectTo": ["source.hcl.terraform"],
+        "injectTo": [
+          "source.hcl.terraform"
+        ],
         "embeddedLanguages": {
           "source.yaml": "yaml"
         }
@@ -65,7 +87,9 @@
       {
         "scopeName": "markdown.fenced_fix",
         "path": "./syntaxes/markdown.fenced_fix.json",
-        "injectTo": ["text.html.markdown"],
+        "injectTo": [
+          "text.html.markdown"
+        ],
         "embeddedLanguages": {
           "meta.embedded.block.shellscript": "shellscript",
           "meta.embedded.block.dockerfile": "dockerfile",
@@ -73,12 +97,258 @@
           "meta.embedded.block.makefile": "makefile"
         }
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "mdInline.toggleDecorations",
+        "title": "Toggle Markdown Decorations",
+        "enablement": "config.nnyjEditorStyling.inline.enabled",
+        "icon": "$(eye)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "mdInline.toggleDecorations",
+          "when": "config.nnyjEditorStyling.inline.enabled && (editorLangId == markdown || editorLangId == md || editorLangId == mdx || editorLangId == markdoc || editorLangId == mdc || editorLangId == juliamarkdown || editorLangId == rmarkdown)",
+          "group": "navigation"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mdInlineRenderer",
+          "title": "NNYJ Syntax Highlight",
+          "icon": "assets/activityBar.svg"
+        }
+      ]
+    },
+    "views": {
+      "mdInlineRenderer": [
+        {
+          "type": "webview",
+          "id": "mdInline.mermaidRenderer",
+          "name": "Mermaid Renderer",
+          "visibility": "hidden"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "NNYJ Syntax Highlight",
+      "properties": {
+        "markdownInlineEditor.defaultBehaviors.diffView.applyDecorations": {
+          "type": "boolean",
+          "default": false,
+          "description": "Apply decorators in diff view",
+          "markdownDescription": "Apply markdown decorations in diff views. Disabled by default to show raw syntax for easier review."
+        },
+        "markdownInlineEditor.decorations.ghostFaintOpacity": {
+          "type": "number",
+          "default": 0.3,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Opacity for ghost faint decorations",
+          "markdownDescription": "Opacity of syntax markers when cursor is on a line (0.0-1.0)."
+        },
+        "markdownInlineEditor.decorations.frontmatterDelimiterOpacity": {
+          "type": "number",
+          "default": 0.3,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Opacity for frontmatter delimiters",
+          "markdownDescription": "Opacity of frontmatter delimiters (---) (0.0-1.0)."
+        },
+        "markdownInlineEditor.decorations.codeBlockLanguageOpacity": {
+          "type": "number",
+          "default": 0.3,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Opacity for code block language identifiers",
+          "markdownDescription": "Opacity of code block language identifiers (0.0-1.0)."
+        },
+        "markdownInlineEditor.links.showEmoji": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show a chain icon after hyperlink text",
+          "markdownDescription": "Show a chain emoji (ðŸ”—) after decorated link text."
+        },
+        "markdownInlineEditor.links.singleClickOpen": {
+          "type": "boolean",
+          "default": false,
+          "description": "Open links and images with single click",
+          "markdownDescription": "Single-click to open links and image links (no Ctrl+Click needed). May interfere with text selection."
+        },
+        "markdownInlineEditor.emojis.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Render emoji shortcodes (e.g., :smile:)",
+          "markdownDescription": "Render emoji shortcodes (e.g., :smile:) inline in Markdown documents."
+        },
+        "markdownInlineEditor.math.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Render LaTeX math inline ($...$ and $$...$$)",
+          "markdownDescription": "Render LaTeX math inline ($...$ and $$...$$). When disabled, math delimiters are shown as plain text."
+        },
+        "markdownInlineEditor.orderedLists.autoNumber": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show computed ordered list numbers instead of the source marker",
+          "markdownDescription": "When enabled, ordered list markers are hidden and replaced with sequential numbers (for example lazy `1.` lists). When disabled, numbers in the file are shown exactly as written. The document on disk is never changed either way."
+        },
+        "markdownInlineEditor.orderedLists.warnWhenSourceNumberDiffers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight when the source marker number differs from the computed number",
+          "markdownDescription": "When ordered list auto-numbering is on, use the warning color for the displayed marker when the number in the source text does not match the computed number (for example all lines use `1.` but the view shows 1., 2., 3.)."
+        },
+        "markdownInlineEditor.mentions.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable GitHub-style mentions and issue reference styling",
+          "markdownDescription": "Enable detection and inline styling for GitHub-style mentions and references such as @username, @org/team, #123, and @owner/repo#456."
+        },
+        "markdownInlineEditor.mentions.linksEnabled": {
+          "type": "boolean",
+          "description": "Override clickable mention and issue reference links",
+          "markdownDescription": "Override git-remote context auto-detection for clickable mention and issue links. `true` forces links on; `false` forces links off; leave unset to use origin remote auto-detection."
+        },
+        "markdownInlineEditor.debug.logging.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Markdown Inline Editor debug logging",
+          "markdownDescription": "Write debug and warning messages to the `Markdown Inline Editor` output channel."
+        },
+        "markdownInlineEditor.debug.performance.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable performance metric logging",
+          "markdownDescription": "Write parse and decoration timing metrics to the `Markdown Inline Editor` output channel."
+        },
+        "markdownInlineEditor.colors.heading1": {
+          "type": "string",
+          "description": "Hex color for level-1 headings",
+          "format": "color",
+          "markdownDescription": "Hex color for level-1 headings (e.g. `#e06c75`). Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.heading2": {
+          "type": "string",
+          "description": "Hex color for level-2 headings",
+          "format": "color",
+          "markdownDescription": "Hex color for level-2 headings. Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.heading3": {
+          "type": "string",
+          "description": "Hex color for level-3 headings",
+          "format": "color",
+          "markdownDescription": "Hex color for level-3 headings. Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.heading4": {
+          "type": "string",
+          "description": "Hex color for level-4 headings",
+          "format": "color",
+          "markdownDescription": "Hex color for level-4 headings. Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.heading5": {
+          "type": "string",
+          "description": "Hex color for level-5 headings",
+          "format": "color",
+          "markdownDescription": "Hex color for level-5 headings. Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.heading6": {
+          "type": "string",
+          "description": "Hex color for level-6 headings",
+          "format": "color",
+          "markdownDescription": "Hex color for level-6 headings. Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.link": {
+          "type": "string",
+          "description": "Hex color for link text",
+          "format": "color",
+          "markdownDescription": "Hex color for link text. Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.listMarker": {
+          "type": "string",
+          "description": "Hex color for list markers",
+          "format": "color",
+          "markdownDescription": "Hex color for list markers (unordered and ordered). Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.inlineCode": {
+          "type": "string",
+          "description": "Hex color for inline code",
+          "format": "color",
+          "markdownDescription": "Hex color for inline code. Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.inlineCodeBackground": {
+          "type": "string",
+          "description": "Hex color for inline code background",
+          "format": "color",
+          "markdownDescription": "Hex color for inline code background overlay. Leave empty to use theme-aware default."
+        },
+        "markdownInlineEditor.colors.emphasis": {
+          "type": "string",
+          "description": "Hex color for emphasis (bold/italic)",
+          "format": "color",
+          "markdownDescription": "Hex color for emphasis (bold/italic). Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.blockquote": {
+          "type": "string",
+          "description": "Hex color for blockquote",
+          "format": "color",
+          "markdownDescription": "Hex color for blockquote markers and/or text. Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.image": {
+          "type": "string",
+          "description": "Hex color for image link text",
+          "format": "color",
+          "markdownDescription": "Hex color for image link text/placeholder. Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.horizontalRule": {
+          "type": "string",
+          "description": "Hex color for horizontal rule line",
+          "format": "color",
+          "markdownDescription": "Hex color for horizontal rule line. Leave empty to use theme default."
+        },
+        "markdownInlineEditor.colors.checkbox": {
+          "type": "string",
+          "description": "Hex color for checkbox (unchecked and checked)",
+          "format": "color",
+          "markdownDescription": "Hex color for unchecked and checked checkbox symbols. Leave empty to use theme default."
+        },
+        "nnyjEditorStyling.inline.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Render Markdown inline. Turn off to keep only syntax colors and table borders."
+        }
+      }
+    }
   },
   "scripts": {
-    "package": "npx @vscode/vsce package"
+    "compile": "tsc --noEmit",
+    "build": "node scripts/build.js",
+    "vscode:prepublish": "npm run build",
+    "package": "vsce package",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@vscode/vsce": "^3.2.0"
+    "@tsconfig/node-lts": "^24.0.0",
+    "@types/node": "^25.9.1",
+    "@types/unist": "^3.0.3",
+    "@types/vscode": "1.100.0",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  },
+  "dependencies": {
+    "cheerio": "1.2.0",
+    "katex": "^0.17.0",
+    "mathjax-full": "^3.2.2",
+    "mermaid": "11.15.0",
+    "remark-gfm": "4.0.1",
+    "remark-parse": "11.0.0",
+    "unified": "11.0.5",
+    "unist-util-visit": "5.1.0"
   }
 }

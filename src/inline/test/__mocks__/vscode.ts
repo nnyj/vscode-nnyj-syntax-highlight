@@ -1,0 +1,344 @@
+// Mock VS Code API for testing
+import { vi } from 'vitest';
+
+class MockRange {
+  constructor(
+    public start: { line: number; character: number },
+    public end: { line: number; character: number },
+  ) {}
+
+  contains(position: { line: number; character: number }): boolean {
+    return (
+      (this.start.line < position.line ||
+        (this.start.line === position.line &&
+          this.start.character <= position.character)) &&
+      (this.end.line > position.line ||
+        (this.end.line === position.line &&
+          this.end.character >= position.character))
+    );
+  }
+  intersection(other: MockRange): MockRange | undefined {
+    const start = {
+      line: Math.max(this.start.line, other.start.line),
+      character: Math.max(this.start.character, other.start.character),
+    };
+    const end = {
+      line: Math.min(this.end.line, other.end.line),
+      character: Math.min(this.end.character, other.end.character),
+    };
+    if (
+      start.line > end.line ||
+      (start.line === end.line && start.character > end.character)
+    ) {
+      return undefined;
+    }
+    return new MockRange(start, end);
+  }
+}
+
+export const Range = MockRange as any;
+
+class MockSelection extends MockRange {
+  constructor(
+    public anchor: { line: number; character: number },
+    public active: { line: number; character: number },
+  ) {
+    super(anchor, active);
+  }
+  get isEmpty(): boolean {
+    return (
+      this.anchor.line === this.active.line &&
+      this.anchor.character === this.active.character
+    );
+  }
+}
+
+export const Selection = MockSelection as any;
+
+export const Position = class {
+  constructor(
+    public line: number,
+    public character: number,
+  ) {}
+
+  translate(lineDelta: number, characterDelta: number) {
+    return new (Position as any)(this.line + lineDelta, this.character + characterDelta);
+  }
+};
+
+export const Uri = {
+  parse: (value: string) => {
+    const schemeMatch = value.match(/^([^:]+):/);
+    const scheme = schemeMatch ? schemeMatch[1] : "file";
+    return {
+      toString: () => value,
+      scheme: scheme,
+    };
+  },
+  file: (path: string) => ({
+    toString: () => `file://${path}`,
+    scheme: "file",
+  }),
+  joinPath: (base: any, ...segments: string[]) => {
+    const basePath = base.toString().replace("file://", "");
+    const joined = [basePath, ...segments].join("/");
+    return {
+      toString: () => `file://${joined}`,
+      scheme: "file",
+    };
+  },
+};
+
+class MockTextDocument {
+  constructor(
+    public uri: ReturnType<typeof Uri.file>,
+    public languageId: string,
+    public version: number,
+    public text: string,
+  ) {}
+
+  getText(range?: MockRange): string {
+    return range ? this.text.slice(this.offsetAt(range.start), this.offsetAt(range.end)) : this.text;
+  }
+
+  lineAt(line: number): { text: string } {
+    // Minimal subset of VS Code's TextDocument.lineAt used by tests.
+    // Keep line splitting consistent with offsetAt (treat CRLF as single break).
+    const lines = this.text.split(/\r\n|\r|\n/);
+    const safeLine = Math.max(0, Math.min(line, Math.max(0, lines.length - 1)));
+    return { text: lines[safeLine] ?? "" };
+  }
+
+  offsetAt(position: { line: number; character: number }): number {
+    let line = 0;
+    let offset = 0;
+    for (const newline of this.text.matchAll(/\r\n|\r|\n/g)) {
+      if (line === position.line) return Math.min(newline.index, offset + position.character);
+      offset = newline.index + newline[0].length;
+      line++;
+    }
+    return Math.min(this.text.length, offset + position.character);
+  }
+  positionAt(offset: number): { line: number; character: number } {
+    // Handle CRLF correctly: split on \r\n first, then handle remaining \n and \r
+    // This matches VS Code's behavior where \r\n is treated as a single line break
+    const textBeforeOffset = this.text.substring(0, offset);
+
+    // Count lines by splitting on \r\n (CRLF), then on \n (LF), then on \r (CR)
+    // This ensures CRLF is treated as a single line break
+    let line = 0;
+    let character = 0;
+    let i = 0;
+
+    while (i < textBeforeOffset.length) {
+      // Check for CRLF first (Windows line ending)
+      if (
+        i + 1 < textBeforeOffset.length &&
+        textBeforeOffset[i] === "\r" &&
+        textBeforeOffset[i + 1] === "\n"
+      ) {
+        line++;
+        character = 0;
+        i += 2; // Skip both \r and \n
+      }
+      // Check for LF (Unix line ending)
+      else if (textBeforeOffset[i] === "\n") {
+        line++;
+        character = 0;
+        i++;
+      }
+      // Check for CR (old Mac line ending)
+      else if (textBeforeOffset[i] === "\r") {
+        line++;
+        character = 0;
+        i++;
+      }
+      // Regular character
+      else {
+        character++;
+        i++;
+      }
+    }
+
+    return {
+      line,
+      character,
+    };
+  }
+}
+
+export const TextDocument = MockTextDocument as any;
+
+class MockTextEditor {
+  public selection: MockSelection;
+
+  constructor(
+    public document: MockTextDocument,
+    public selections: MockSelection[],
+  ) {
+    this.selection = selections[0] ?? new MockSelection({ line: 0, character: 0 }, { line: 0, character: 0 });
+  }
+
+  setDecorations(_decorationType: any, _ranges: MockRange[]): void {
+    // Mock implementation
+  }
+
+  revealRange(_range: MockRange, _revealType?: unknown): void {
+    // Mock implementation
+  }
+}
+
+export const TextEditor = MockTextEditor as any;
+
+export enum ColorThemeKind {
+  Light = 1,
+  Dark = 2,
+  HighContrast = 3,
+  HighContrastLight = 4,
+}
+
+/** Last options passed to `createTextEditorDecorationType` (for tests that need to assert omit-`color` behavior). */
+let lastTextEditorDecorationTypeOptions: unknown;
+
+/** @internal test helper */
+export function getLastTextEditorDecorationTypeOptions(): unknown {
+  return lastTextEditorDecorationTypeOptions;
+}
+
+/** @internal test helper */
+export function resetTextEditorDecorationTypeOptionsCapture(): void {
+  lastTextEditorDecorationTypeOptions = undefined;
+}
+
+export const window = {
+  createTextEditorDecorationType: vi.fn((options: unknown) => {
+    lastTextEditorDecorationTypeOptions = options;
+    return { dispose: vi.fn() };
+  }),
+  createOutputChannel: vi.fn(() => ({
+    appendLine: vi.fn(),
+    dispose: vi.fn(),
+  })),
+  activeTextEditor: undefined as any,
+  visibleTextEditors: [] as any[],
+  activeColorTheme: {
+    kind: ColorThemeKind.Dark,
+  },
+  showInformationMessage: vi.fn(),
+  showTextDocument: vi.fn(async (document: MockTextDocument) => new MockTextEditor(document, [])),
+  onDidChangeActiveTextEditor: () => ({ dispose: () => {} }),
+  onDidChangeTextEditorSelection: () => ({ dispose: () => {} }),
+  onDidChangeActiveColorTheme: () => ({ dispose: () => {} }),
+};
+
+export class WorkspaceEdit {
+  private _edits: Array<{ uri: any; range: any; newText: string }> = [];
+
+  replace(uri: any, range: any, newText: string): void {
+    this._edits.push({ uri, range, newText });
+  }
+
+  /** @internal test helper — returns recorded replace calls */
+  getEdits(): Array<{ uri: any; range: any; newText: string }> {
+    return this._edits;
+  }
+}
+
+export const workspace = {
+  onDidChangeTextDocument: () => ({ dispose: () => {} }),
+  onDidChangeConfiguration: () => ({ dispose: () => {} }),
+  onDidRenameFiles: () => ({ dispose: () => {} }),
+  applyEdit: vi.fn().mockResolvedValue(true),
+  openTextDocument: vi.fn(async (uri: ReturnType<typeof Uri.file>) => new MockTextDocument(uri, "markdown", 1, "")),
+  asRelativePath: vi.fn((uri: { toString?: () => string } | string) => {
+    const value = typeof uri === "string" ? uri : uri.toString?.() ?? "";
+    return value.replace(/^file:\/\/\/?/, "");
+  }),
+  getConfiguration: (section?: string) => ({
+    get: <T>(key: string, defaultValue: T): T => {
+      // Return default value for all configuration keys in tests
+      return defaultValue;
+    },
+  }),
+  getWorkspaceFolder: (_uri: {
+    fsPath?: string;
+    toString?: () => string;
+  }): { uri: { fsPath: string }; name: string } | undefined => {
+    return undefined;
+  },
+};
+
+export const ExtensionContext = class {
+  subscriptions: Array<{ dispose: () => void }> = [];
+};
+
+export const ThemeColor = class {
+  constructor(public id: string) {}
+};
+
+export class TabInputTextDiff {
+  constructor(public original: any, public modified: any) {}
+}
+
+export const MarkdownString = class {
+  public value: string = "";
+  public isTrusted: boolean = false;
+  public supportHtml: boolean = false;
+
+  constructor(value?: string) {
+    if (value) {
+      this.value = value;
+    }
+  }
+
+  appendText(text: string): void {
+    this.value += text;
+  }
+
+  appendMarkdown(markdown: string): void {
+    this.value += markdown;
+  }
+};
+
+export const Hover = class {
+  constructor(
+    public contents: typeof MarkdownString | string,
+    public range?: any,
+  ) {}
+};
+
+export const DocumentLink = class {
+  constructor(
+    public range: any,
+    public target?: any,
+  ) {}
+};
+
+export const CancellationToken = class {
+  constructor(public isCancellationRequested: boolean = false) {}
+};
+
+export const commands = {
+  executeCommand: vi.fn(),
+  registerCommand: vi.fn((_command: string, _handler: (...args: any[]) => any) => ({ dispose: vi.fn() })),
+};
+
+export const extensions = {
+  getExtension: vi.fn(),
+};
+
+export const languages = {
+  registerDocumentLinkProvider: vi.fn((_selector: unknown, _provider: unknown) => ({ dispose: vi.fn() })),
+  registerHoverProvider: vi.fn((_selector: unknown, _provider: unknown) => ({ dispose: vi.fn() })),
+};
+
+export enum TextEditorRevealType {
+  Default = 0,
+  InCenter = 1,
+}
+
+export enum TextEditorSelectionChangeKind {
+  Mouse = 1,
+  Keyboard = 2,
+  Command = 3,
+}

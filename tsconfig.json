@@ -1,0 +1,10 @@
+{
+  "extends": "@tsconfig/node-lts/tsconfig.json",
+  "compilerOptions": {
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src/inline/**/*.ts"],
+  "exclude": ["**/__tests__/**", "**/test/**", "**/*_test.ts"]
+}

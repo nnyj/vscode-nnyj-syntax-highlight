@@ -1,2 +1,9 @@
 .gitignore
 node_modules/**
+src/**
+scripts/**
+.github/**
+tsconfig.json
+vitest.config.mts
+package-lock.json
+*.vsix

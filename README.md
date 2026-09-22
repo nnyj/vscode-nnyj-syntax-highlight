@@ -1,4 +1,4 @@
-# vscode-nnyj-syntax-highlight
+# NNYJ Syntax Highlight
 
 <div align="center">
 
@@ -9,11 +9,19 @@
 
 </div>
 
-VS Code extension that adds TextMate grammar injections for Markdown and Terraform HCL, plus programmatic table decorations and shell comment coloring.
+Custom Markdown and Terraform syntax colors with inline Markdown rendering in the native VS Code editor.
 
 ![sample](images/syntax-highlight-sample.png)
 
 ## Features
+
+### Inline Markdown
+
+- Headings, emphasis, links, lists, tables, code, images, math, and Mermaid use editor decorations.
+- Markdown markers appear while editing their content.
+- `Toggle Markdown Decorations` switches rendering for the current file.
+- `nnyjEditorStyling.inline.enabled` switches the complete renderer on or off while keeping custom syntax colors and table borders.
+- Existing `markdownInlineEditor.*` settings control individual rendering features and colors.
 
 ### Markdown injections
 
@@ -37,7 +45,7 @@ Fenced code blocks inside list items lose syntax highlighting for bash/sh/zsh, d
 
 ### Table decorations
 
-Pipe-delimited markdown tables get visual styling: bold header row with bottom border, dimmed separator row, bordered data rows, dimmed pipe characters. Requires header + separator + at least one data row.
+Pipe-delimited Markdown tables use 30% opacity row borders and fixed-width vertical separators. Cell text stays editable with the same layout regardless of cursor position. Table emoji occupy two-character boxes, including when inline rendering is disabled. NNYJ Tweaks supplies navigation and Unicode text padding. With inline rendering disabled, custom decorations provide bold headers and dim separator rows and pipes.
 
 ### Terraform HCL injection
 
@@ -63,16 +71,30 @@ Unlabeled ` ``` ` blocks can be colored via the `markup.fenced_code` scope (3-se
 
 ## Known limitations
 
+- VS Code counts hidden URLs when wrapping lines; trailing punctuation stays beside the link label, but blank wrapped rows can remain.
 - Bold/italic/highlight work inside brackets, but links and images may not
 - Indented fenced block fix does not cover makefile `ifeq`/`ifdef`/`define`/`endif` blocks
 
 ## Install
 
+- Identifier: `nnyj.nnyj-syntax-highlight`.
+- Disable or uninstall `CodeSmith.markdown-inline-editor-vscode` to prevent duplicate rendering.
+
 ```sh
+npm ci
 npm run package
-code --install-extension nnyj-syntax-highlight-0.0.8.vsix
+code --install-extension nnyj-syntax-highlight-0.1.0.vsix
 ```
+
+## Development
+
+- [Maintenance](docs/maintenance.md) covers code ownership, renderer constraints, troubleshooting, and verification.
+- `npm run compile` checks TypeScript.
+- `npm test` runs regression tests.
+- `npm run build` checks TypeScript, bundles the extension, and copies Mermaid assets into `dist/`.
+- Packaging runs the build automatically.
 
 ## License
 
-[MIT](LICENSE)
+- Custom extension: [MIT](LICENSE).
+- Inline renderer adapted from [Markdown Inline Editor](https://github.com/SeardnaSchmid/markdown-inline-editor-vscode), v1.24.2, commit `4572a53`, based on [Markdown Inline Preview](https://github.com/domdomegg/markdown-inline-preview-vscode), under [MIT](LICENSE).
