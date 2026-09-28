@@ -202,7 +202,8 @@ export class MarkdownParser {
       scopes: dedupeScopesHelper(scopes),
       mermaidBlocks,
       mathRegions: scanMathRegions(normalizedText, decorations.filter(decoration =>
-        decoration.type === 'tablePipe' || decoration.type === 'tableSeparatorPipe').map(decoration => decoration.startPos)),
+        decoration.type === 'tablePipe' || decoration.type === 'tableSeparatorPipe').map(decoration => decoration.startPos),
+        decorations.filter(decoration => decoration.type === 'code')),
     };
   }
 

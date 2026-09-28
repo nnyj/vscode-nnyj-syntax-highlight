@@ -33,19 +33,9 @@ describe('MarkdownParser - Math regions', () => {
       expect(regions[1].displayMode).toBe(false);
     });
 
-    it('allows optional whitespace after opening $ and before closing $; content is trimmed', () => {
-      const regions = getMathRegions('$  x$');
-      expect(regions).toHaveLength(1);
-      expect(regions[0].source).toBe('x');
-      expect(regions[0].displayMode).toBe(false);
-    });
-
-    it('inline with spaces around content (e.g. integral) is one region with trimmed source', () => {
-      const text = '$ f(x)=\\int_{-\\infty}^{\\infty}e^{-x^2}dx $';
-      const regions = getMathRegions(text);
-      expect(regions).toHaveLength(1);
-      expect(regions[0].source).toBe('f(x)=\\int_{-\\infty}^{\\infty}e^{-x^2}dx');
-      expect(regions[0].displayMode).toBe(false);
+    it('whitespace right inside $ produces no region', () => {
+      expect(getMathRegions('$  x$')).toHaveLength(0);
+      expect(getMathRegions('$x $')).toHaveLength(0);
     });
 
     it('$100$ and $200$ are valid inline (content is digits)', () => {
@@ -128,6 +118,25 @@ describe('MarkdownParser - Math regions', () => {
     it('single $ with no pair produces no region', () => {
       const regions = getMathRegions('Cost: $50 and nothing else');
       expect(regions).toHaveLength(0);
+    });
+
+    it('prices $5 and $10 produce no region', () => {
+      expect(getMathRegions('$5 and $10')).toHaveLength(0);
+    });
+
+    it('inline $ pair split across lines produces no region', () => {
+      expect(getMathRegions('$a\nb$')).toHaveLength(0);
+    });
+
+    it('$ inside inline code span produces no region', () => {
+      expect(getMathRegions('use `$(cygpath -w "$HOME")`')).toHaveLength(0);
+      expect(getMathRegions('`$a` and `b$`')).toHaveLength(0);
+    });
+
+    it('inline math next to code span still renders', () => {
+      const regions = getMathRegions('`$HOME` and $x$');
+      expect(regions).toHaveLength(1);
+      expect(regions[0].source).toBe('x');
     });
   });
 

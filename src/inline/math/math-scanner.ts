@@ -20,29 +20,42 @@ const MATH_FENCE_LANGUAGES = new Set(['math', 'latex', 'tex']);
 /**
  * Scans text for math regions. Block math ($$...$$) is tried first; then inline ($...$).
  * Escaped \$ does not start/end; empty or whitespace-only content is not treated as math.
- * Inline: $ may have optional whitespace immediately after it and before the closing $;
- * content is trimmed and must be non-empty (so "Price is $10" still has no closing $ → no region).
+ * Inline follows Pandoc: no whitespace right after opening $ or before closing $,
+ * closing $ not followed by a digit, single line (so "$5 and $10" is no region).
+ * Inline code spans are skipped and no region crosses into one.
  *
  * @param text - Normalized document text (LF only)
  * @returns MathRegion[] in document order, non-overlapping
  */
-export function scanMathRegions(text: string, cell_boundaries: number[] = []): MathRegion[] {
+export function scanMathRegions(
+  text: string,
+  cell_boundaries: number[] = [],
+  code_spans: { startPos: number; endPos: number }[] = []
+): MathRegion[] {
   const fencedBlocks = scanFencedCodeBlocks(text);
   const regions: MathRegion[] = [];
   let i = 0;
   const n = text.length;
   let fenceIndex = 0;
+  let span_index = 0;
+  const boundaries = [...cell_boundaries, ...code_spans.map((span) => span.startPos)].sort((a, b) => a - b);
   let boundary_index = 0;
 
   while (i < n) {
-    while (boundary_index < cell_boundaries.length && cell_boundaries[boundary_index] <= i) boundary_index++;
-    const cell_end = cell_boundaries[boundary_index] ?? n;
+    while (boundary_index < boundaries.length && boundaries[boundary_index] <= i) boundary_index++;
+    const cell_end = boundaries[boundary_index] ?? n;
     while (fenceIndex < fencedBlocks.length && fencedBlocks[fenceIndex].endPos <= i) {
       fenceIndex++;
     }
     const activeFence = fencedBlocks[fenceIndex];
     if (activeFence && i >= activeFence.startPos && i < activeFence.endPos) {
       i = activeFence.endPos;
+      continue;
+    }
+    while (span_index < code_spans.length && code_spans[span_index].endPos <= i) span_index++;
+    const active_span = code_spans[span_index];
+    if (active_span && i >= active_span.startPos) {
+      i = active_span.endPos;
       continue;
     }
 
@@ -150,19 +163,18 @@ function isEscapedAt(text: string, idx: number): boolean {
 
 function tryMatchInline(text: string, start: number, cell_end: number): MathRegion | null {
   if (text[start] !== '$') return null;
+  if (start + 1 >= text.length || /\s/.test(text[start + 1])) return null;
+  const line_break = text.indexOf('\n', start);
+  const end_limit = Math.min(cell_end, line_break === -1 ? text.length : line_break);
   let i = start + 1;
   while (i < text.length) {
     const idx = text.indexOf('$', i);
-    if (idx === -1 || idx >= cell_end) return null;
-    if (isEscapedAt(text, idx)) {
+    if (idx === -1 || idx >= end_limit) return null;
+    if (isEscapedAt(text, idx) || /\s/.test(text[idx - 1]) || /\d/.test(text[idx + 1] ?? '')) {
       i = idx + 1;
       continue;
     }
-    const content = text.slice(start + 1, idx).trim();
-    if (content.length === 0) {
-      i = idx + 1;
-      continue;
-    }
+    const content = text.slice(start + 1, idx);
     return {
       startPos: start,
       endPos: idx + 1,
