@@ -1,0 +1,23 @@
+{
+  "name": "nnyj-inset-helper",
+  "displayName": "NNYJ Inset Helper",
+  "description": "Companion for NNYJ Syntax Highlight: full-size images and Mermaid diagrams below their Markdown lines, through the proposed editorInsets API. Install from vsix, not published.",
+  "version": "0.1.0",
+  "publisher": "nnyj",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nnyj/vscode-nnyj-syntax-highlight"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "enabledApiProposals": [
+    "editorInsets"
+  ],
+  "activationEvents": [],
+  "main": "./extension.js"
+}

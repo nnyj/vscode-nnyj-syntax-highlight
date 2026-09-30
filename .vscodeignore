@@ -7,3 +7,4 @@ tsconfig.json
 vitest.config.mts
 package-lock.json
 *.vsix
+inset_helper/**

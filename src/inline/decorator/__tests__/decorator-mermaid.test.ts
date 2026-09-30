@@ -1,6 +1,7 @@
 vi.mock('../../mermaid/mermaid-renderer', () => ({
   initMermaidRenderer: vi.fn(),
   renderMermaidSvg: vi.fn(),
+  getEditorLineHeight: vi.fn(() => 19),
   svgToDataUri: vi.fn((svg: string) => `data:${svg}`),
   createErrorSvg: vi.fn(() => '<svg></svg>'),
   saveSvgToHtml: vi.fn(),

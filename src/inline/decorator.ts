@@ -1,5 +1,5 @@
 import { DecorationOptions, Range, TextEditor, TextDocument, TextDocumentChangeEvent, window, TextEditorSelectionChangeKind, Memento } from 'vscode';
-import { DecorationRange, DecorationType, MermaidBlock, MathRegion, ScopeRange } from './parser';
+import { DecorationRange, DecorationType, ImageBlock, MermaidBlock, MathRegion, ScopeRange } from './parser';
 import { config } from './config';
 import { is_diff_editor } from './diff-context';
 import { MarkdownParseCache } from './markdown-parse-cache';
@@ -10,6 +10,7 @@ import {
 } from './decorator/editor-decoration-applier';
 import { FileDecorationStateStore } from './decorator/file-decoration-state';
 import { MermaidUpdateCoordinator } from './decorator/mermaid-update-coordinator';
+import { ImageUpdateCoordinator } from './decorator/image_update_coordinator';
 import { DecorationTypeRegistry } from './decorator/decoration-type-registry';
 import { filterDecorationsForEditor, ScopeEntry } from './decorator/visibility-model';
 import { handleCheckboxClick } from './decorator/checkbox-toggle';
@@ -62,10 +63,16 @@ export class Decorator {
   private skipDecorationsInDiffView = true;
 
   private decorationTypes: DecorationTypeRegistry;
-  private mermaidDecorations = new MermaidDiagramDecorations();
+  // One decoration type per diagram line slice, unused ones are disposed on each apply
+  private mermaidDecorations = new MermaidDiagramDecorations(1000);
   private readonly mermaidCoordinator = new MermaidUpdateCoordinator(
     this.mermaidDecorations,
-    PERFORMANCE_CONSTANTS.MERMAID_MAX_CONCURRENCY
+    PERFORMANCE_CONSTANTS.MERMAID_MAX_CONCURRENCY,
+    () => this.updateDecorationsForSelection()
+  );
+  private readonly imageCoordinator = new ImageUpdateCoordinator(
+    new MermaidDiagramDecorations(),
+    () => this.updateDecorationsForSelection()
   );
   private mathDecorations = new MathDecorations();
   private mermaidHoverIndicatorDecorationType = MermaidHoverIndicatorDecorationType();
@@ -267,7 +274,8 @@ export class Decorator {
     
     // Also clear ghost faint decoration (not in decorationTypeMap)
     this.activeEditor.setDecorations(this.decorationTypes.getGhostFaintDecorationType(), []);
-    this.mermaidDecorations.clear(this.activeEditor);
+    this.mermaidCoordinator.clear(this.activeEditor);
+    this.imageCoordinator.clear(this.activeEditor);
     this.mathDecorations.clear(this.activeEditor);
     this.activeEditor.setDecorations(this.mermaidHoverIndicatorDecorationType, []);
   }
@@ -304,7 +312,7 @@ export class Decorator {
     // Parse document (uses cache if version unchanged)
     const cycleStart = Date.now();
     const version = document.version;
-    const { decorations, scopes, text, mermaidBlocks, mathRegions } = this.parseDocument(document);
+    const { decorations, scopes, text, mermaidBlocks, imageBlocks, mathRegions } = this.parseDocument(document);
     const parseDurationMs = Date.now() - cycleStart;
 
     // Re-validate version before applying (race condition protection)
@@ -319,11 +327,16 @@ export class Decorator {
 
     // Filter decorations based on selections (pass original text for offset adjustment)
     const filterStart = Date.now();
-    const filtered = this.filterDecorations(decorations, scopes, text);
+    // Rendered images replace their whole syntax, so drop alt text and marker decorations inside them
+    const renderedImages = this.imageCoordinator.getRenderedBlocks(this.activeEditor, imageBlocks, text);
+    const visibleDecorations = renderedImages.length === 0 ? decorations : decorations.filter(decoration =>
+      !renderedImages.some(block => decoration.startPos >= block.startPos && decoration.endPos <= block.endPos));
+    const filtered = this.filterDecorations(visibleDecorations, scopes, text);
     const filterDurationMs = Date.now() - filterStart;
 
     // Apply decorations
     this.applyDecorations(filtered);
+    this.imageCoordinator.update(this.activeEditor, imageBlocks, text);
     if (config.math.enabled() && mathRegions.length > 0) {
       this.applyMathDecorations(mathRegions.filter(region => !scopes.some(scope =>
         scope.kind === 'table' && scope.startPos <= region.startPos && scope.endPos >= region.endPos)), text);
@@ -398,6 +411,7 @@ export class Decorator {
     scopes: ScopeEntry[];
     text: string;
     mermaidBlocks: MermaidBlock[];
+    imageBlocks: ImageBlock[];
     mathRegions: MathRegion[];
   } {
     const entry = this.parseCache.get(document);
@@ -407,6 +421,7 @@ export class Decorator {
       scopes: scopeEntries,
       text: entry.text,
       mermaidBlocks: entry.mermaidBlocks,
+      imageBlocks: entry.imageBlocks,
       mathRegions: entry.mathRegions,
     };
   }
@@ -622,8 +637,8 @@ export class Decorator {
    */
   dispose() {
     this.updateScheduler.dispose();
-    this.mermaidCoordinator.cancel();
-    this.mermaidDecorations.dispose();
+    this.mermaidCoordinator.dispose();
+    this.imageCoordinator.dispose();
     this.mathDecorations.dispose();
     this.decorationTypes.dispose();
     this.mermaidHoverIndicatorDecorationType.dispose();

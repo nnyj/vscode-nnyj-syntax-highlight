@@ -66,6 +66,7 @@ import { logError, logWarn } from "../logging";
 import { normalizeToLF } from "../position-mapping";
 import {
   DecorationRange,
+  ImageBlock,
   MermaidBlock,
   ParseResult,
   ScopeRange,
@@ -156,6 +157,7 @@ export class MarkdownParser {
         decorations: [],
         scopes: [],
         mermaidBlocks: [],
+        imageBlocks: [],
         mathRegions: [],
       };
     }
@@ -167,6 +169,7 @@ export class MarkdownParser {
     const decorations: DecorationRange[] = [];
     const scopes: ScopeRange[] = [];
     const mermaidBlocks: MermaidBlock[] = [];
+    const imageBlocks: ImageBlock[] = [];
 
     // Process frontmatter before remark parsing to avoid conflicts with thematic break detection
     processFrontmatterHelper(normalizedText, decorations, scopes);
@@ -176,7 +179,7 @@ export class MarkdownParser {
       const ast = this.processor.parse(normalizedText) as Root;
 
       // Process AST nodes and extract decorations + scopes
-      this.processAST(ast, normalizedText, decorations, scopes, mermaidBlocks);
+      this.processAST(ast, normalizedText, decorations, scopes, mermaidBlocks, imageBlocks);
 
       // Handle edge cases: empty image alt text that remark doesn't parse as Image node
       handleEmptyImageAltHelper(normalizedText, decorations);
@@ -201,6 +204,7 @@ export class MarkdownParser {
       decorations,
       scopes: dedupeScopesHelper(scopes),
       mermaidBlocks,
+      imageBlocks,
       mathRegions: scanMathRegions(normalizedText, decorations.filter(decoration =>
         decoration.type === 'tablePipe' || decoration.type === 'tableSeparatorPipe').map(decoration => decoration.startPos),
         decorations.filter(decoration => decoration.type === 'code' || decoration.type === 'codeBlock')),
@@ -223,6 +227,7 @@ export class MarkdownParser {
     decorations: DecorationRange[],
     scopes: ScopeRange[],
     mermaidBlocks: MermaidBlock[],
+    imageBlocks: ImageBlock[],
   ): void {
     // Track processed blockquote positions to avoid duplicates from nested blockquotes
     const processedBlockquotePositions = new Set<number>();
@@ -329,6 +334,7 @@ export class MarkdownParser {
                 decorations,
                 scopes,
                 currentAncestors,
+                imageBlocks,
               );
               break;
 
@@ -577,6 +583,7 @@ export class MarkdownParser {
     decorations: DecorationRange[],
     scopes: ScopeRange[],
     ancestors: Node[],
+    imageBlocks: ImageBlock[],
   ): void {
     if (!hasValidPositionHelper(node)) return;
 
@@ -691,6 +698,13 @@ export class MarkdownParser {
     }
 
     addScopeHelper(scopes, start, end, "image");
+
+    if (node.url) {
+      const numLines = countStandaloneImageLines(text, start, end);
+      if (numLines > 0) {
+        imageBlocks.push({ startPos: start, endPos: end, url: node.url, numLines });
+      }
+    }
   }
 
   /**
@@ -993,4 +1007,30 @@ export class MarkdownParser {
       }
     }
   }
+}
+
+/**
+ * Returns lines an image may cover when alone on its line (after optional list/quote markers):
+ * its own line plus blank lines below. Returns 0 when other text shares the line.
+ */
+function countStandaloneImageLines(text: string, start: number, end: number): number {
+  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+  let lineEnd = text.indexOf("\n", end);
+  if (lineEnd === -1) lineEnd = text.length;
+  const prefix = text.substring(lineStart, start);
+  const suffix = text.substring(end, lineEnd);
+  if (suffix.trim() !== "" || !/^\s*(?:>\s*)*(?:(?:[-*+]|\d+[.)])\s+)?$/.test(prefix)) {
+    return 0;
+  }
+
+  let numLines = 1;
+  while (lineEnd < text.length) {
+    const nextStart = lineEnd + 1;
+    let nextEnd = text.indexOf("\n", nextStart);
+    if (nextEnd === -1) nextEnd = text.length;
+    if (text.substring(nextStart, nextEnd).trim() !== "") break;
+    numLines++;
+    lineEnd = nextEnd;
+  }
+  return numLines;
 }

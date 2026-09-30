@@ -24,6 +24,7 @@ jobs:
           npm ci
           npm run compile --if-present
           npm run package
+          npm run package:helper
 
       - name: Create release
         env:

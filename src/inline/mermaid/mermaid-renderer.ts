@@ -149,6 +149,21 @@ const getMermaidDecoration = memoizeMermaidDecoration(async (
 });
 
 /**
+ * Editor line height in px, derived from fontSize when editor.lineHeight is unset (like Markless)
+ */
+export function getEditorLineHeight(): number {
+  const editorConfig = vscode.workspace.getConfiguration('editor');
+  const fontSize = editorConfig.get<number>('fontSize', 14);
+  const lineHeight = editorConfig.get<number>('lineHeight', 0);
+  if (lineHeight >= 8) {
+    return lineHeight;
+  }
+  // Markless uses 1.5 for macOS, 1.35 for others
+  const multiplier = process.platform === 'darwin' ? 1.5 : 1.35;
+  return Math.max(8, Math.round(multiplier * fontSize));
+}
+
+/**
  * Render Mermaid SVG for decoration display
  * @param source - Mermaid diagram source code
  * @param options - Rendering options including theme, fontFamily, numLines, and height
@@ -164,20 +179,8 @@ export async function renderMermaidSvg(
   const darkMode = options.theme === 'dark';
   // Calculate height based on line count (like Markless: (numLines + 2) * lineHeight)
   // Default to 200px if numLines not provided
-  const editorConfig = vscode.workspace.getConfiguration('editor');
-  const fontSize = editorConfig.get<number>('fontSize', 14);
-  let lineHeight = editorConfig.get<number>('lineHeight', 0);
-
-  // If lineHeight is 0 or invalid, calculate from fontSize (like Markless does)
-  if (lineHeight === 0 || lineHeight < 8) {
-    // Use platform-appropriate multiplier (Markless uses 1.5 for macOS, 1.35 for others)
-    const multiplier = process.platform === 'darwin' ? 1.5 : 1.35;
-    lineHeight = Math.round(multiplier * fontSize);
-    if (lineHeight < 8) {
-      lineHeight = 8; // Minimum line height
-    }
-  }
-
+  const fontSize = vscode.workspace.getConfiguration('editor').get<number>('fontSize', 14);
+  const lineHeight = getEditorLineHeight();
   const numLines = options.numLines || 5;
   const height = options.height || ((numLines + 2) * lineHeight);
 

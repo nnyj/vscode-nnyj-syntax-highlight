@@ -247,6 +247,7 @@ export class WorkspaceEdit {
 export const workspace = {
   onDidChangeTextDocument: () => ({ dispose: () => {} }),
   onDidChangeConfiguration: () => ({ dispose: () => {} }),
+  createFileSystemWatcher: () => ({ onDidChange: () => ({ dispose: () => {} }), dispose: () => {} }),
   onDidRenameFiles: () => ({ dispose: () => {} }),
   applyEdit: vi.fn().mockResolvedValue(true),
   openTextDocument: vi.fn(async (uri: ReturnType<typeof Uri.file>) => new MockTextDocument(uri, "markdown", 1, "")),

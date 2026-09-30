@@ -18,6 +18,9 @@ Custom Markdown and Terraform syntax colors with inline Markdown rendering in th
 ### Inline Markdown
 
 - Headings, emphasis, links, lists, tables, code, images, math, and Mermaid use editor decorations.
+- Images alone on their line render inline, local files reload on change.
+- With the [inset helper](inset_helper/README.md) installed, images and Mermaid diagrams render full size in a box below their lines, pushing text down.
+- Without the helper, images are drawn over their line and the blank lines below it, Mermaid diagrams are fitted into their code block lines.
 - Markdown markers appear while editing their content.
 - `Toggle Markdown Decorations` switches rendering for the current file.
 - `nnyjEditorStyling.inline.enabled` switches the complete renderer on or off while keeping custom syntax colors and table borders.
@@ -93,6 +96,7 @@ code --install-extension nnyj-syntax-highlight-0.1.0.vsix
 - `npm test` runs regression tests.
 - `npm run build` checks TypeScript, bundles the extension, and copies Mermaid assets into `dist/`.
 - Packaging runs the build automatically.
+- `npm run package:helper` packages [inset_helper/](inset_helper/README.md), a separate vsix wrapping the proposed `editorInsets` API. Only the main extension goes to the Marketplace, it rejects proposed APIs.
 
 ## License
 

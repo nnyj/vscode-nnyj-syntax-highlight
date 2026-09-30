@@ -30,6 +30,14 @@ export interface MermaidBlock {
   numLines: number;
 }
 
+/** Image alone on its line, numLines = own line + blank lines below it reserved for the render */
+export interface ImageBlock {
+  startPos: number;
+  endPos: number;
+  url: string;
+  numLines: number;
+}
+
 export interface MathRegion {
   startPos: number;
   endPos: number;
@@ -42,6 +50,7 @@ export interface ParseResult {
   decorations: DecorationRange[];
   scopes: ScopeRange[];
   mermaidBlocks: MermaidBlock[];
+  imageBlocks: ImageBlock[];
   mathRegions: MathRegion[];
 }
 
