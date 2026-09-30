@@ -21,6 +21,8 @@ Custom Markdown and Terraform syntax colors with inline Markdown rendering in th
 - Images alone on their line render inline, local files reload on change.
 - With the [inset helper](inset_helper/README.md) installed, images and Mermaid diagrams render full size in a box below their lines, pushing text down.
 - Without the helper, images are drawn over their line and the blank lines below it, Mermaid diagrams are fitted into their code block lines.
+- Fenced code blocks render as a card from the fence column to the widest line.
+- Clicking `⎘` after a code block's opening fence copies its content without the fence indent.
 - Markdown markers appear while editing their content.
 - `Toggle Markdown Decorations` switches rendering for the current file.
 - `nnyjEditorStyling.inline.enabled` switches the complete renderer on or off while keeping custom syntax colors and table borders.

@@ -1,6 +1,7 @@
 import { Range, ThemeColor, type DecorationOptions, type Position, type TextEditor } from 'vscode';
 import type { DecorationRange, DecorationType } from '../parser';
 import { isMarkerDecorationType } from './decoration-categories';
+import { isCopiedFence } from '../code_block_copy';
 
 export type ScopeEntry = {
   startPos: number;
@@ -110,6 +111,13 @@ export function filterDecorationsForEditor(
           selectionOverlayRanges.push(intersection);
         }
       }
+    }
+
+    if (decoration.type === 'codeBlock') {
+      const fences_visible = rangeIntersectsAny(range, rawRanges) ||
+        activeLines.has(range.start.line) || activeLines.has(range.end.line);
+      filtered.set('codeBlock', [...(filtered.get('codeBlock') || []), ...codeBlockCard(editor, range, fences_visible)]);
+      continue;
     }
 
     if (selectionOnlyMarkerTypes.has(decoration.type)) {
@@ -261,6 +269,39 @@ export function filterDecorationsForEditor(
   }
 
   return filtered;
+}
+
+const FENCE_PATTERN = /^[ \t]*(`{3,}|~{3,})/;
+const COPY_BUTTON = ' ⎘';
+const COPIED_LABEL = ' ✓ Copied';
+
+// Code block background as a card from the fence column to 1 column past the widest line.
+// Full-width backgrounds would paint under the overlay scrollbar. The fence line gets the copy button.
+// Box text: NBSP before the button keeps the gap, ZWSP gives empty boxes the line height.
+function codeBlockCard(editor: TextEditor, range: Range, fences_visible: boolean): DecorationOptions[] {
+  const indent = range.start.character;
+  const lines: { length: number; visual: number }[] = [];
+  for (let line = range.start.line; line <= range.end.line; line++) {
+    const text = editor.document.lineAt(line).text;
+    const is_fence = line === range.start.line || line === range.end.line;
+    const hidden = is_fence && !fences_visible ? FENCE_PATTERN.exec(text)?.[1].length ?? 0 : 0;
+    lines.push({ length: text.length, visual: text.length - hidden });
+  }
+  const button = isCopiedFence(editor.document.uri.toString(), range.start.line) ? COPIED_LABEL : COPY_BUTTON;
+  const right = Math.max(...lines.map((line, i) => line.visual + (i === 0 ? button.length : 0))) + 1;
+  return lines.map((line, i) => {
+    const box_start = Math.max(line.visual, indent);
+    return {
+      range: new Range(range.start.line + i, Math.min(indent, line.length), range.start.line + i, line.length),
+      renderOptions: { after: {
+        contentText: i === 0 ? button : '​',
+        color: new ThemeColor('descriptionForeground'),
+        backgroundColor: new ThemeColor('textCodeBlock.background'),
+        margin: `0 0 0 ${box_start - line.visual}ch`,
+        width: `${right - box_start}ch`,
+      } },
+    };
+  });
 }
 
 function collectRawRanges(selectedRanges: Range[], scopes: ScopeEntry[]): Range[] {

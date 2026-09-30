@@ -369,3 +369,22 @@ describe('filterDecorationsForEditor — basic cases', () => {
     expect(result.has('hide')).toBe(true);
   });
 });
+
+describe('code block card', () => {
+  it('aligns every line box to one right edge, starting at the fence column', () => {
+    const text = '- a\n  ```sh\n  ls -la\n\n  ```\nafter';
+    const decs: DecorationRange[] = [
+      { startPos: 6, endPos: text.indexOf('```', 10) + 3, type: 'codeBlock' } as any,
+    ];
+    const editor = makeEditorWithSelection(text, 5, 0, 5, 0);
+    const result = filterDecorationsForEditor(editor as any, decs, [], text, (s, e, t) => simpleRangeFactory(s, e, t));
+    const boxes = (result.get('codeBlock') as any[]).map(item => [item.renderOptions.after.margin, item.renderOptions.after.width]);
+    // Right edge 9: widest visual line `  ls -la` is 8 columns, plus 1
+    expect(boxes).toEqual([
+      ['0 0 0 0ch', '5ch'],
+      ['0 0 0 0ch', '1ch'],
+      ['0 0 0 2ch', '7ch'],
+      ['0 0 0 0ch', '7ch'],
+    ]);
+  });
+});

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { createNavigateToAnchorCommand } from './commands/navigate-to-anchor';
+import { registerCodeBlockCopy } from './code_block_copy';
 import { createToggleDecorationsCommand } from './commands/toggle-decorations';
 import { config } from './config';
 import { Decorator } from './decorator';
@@ -47,6 +48,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
   const commandDisposables = [
     createToggleDecorationsCommand(decorator),
     createNavigateToAnchorCommand(),
+    registerCodeBlockCopy(parseCache, () => decorator.updateDecorationsForSelection()),
   ];
 
   context.subscriptions.push(

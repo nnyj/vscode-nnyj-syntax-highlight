@@ -2,7 +2,7 @@
   "name": "nnyj-syntax-highlight",
   "displayName": "NNYJ Syntax Highlight",
   "description": "Custom syntax colors and inline Markdown rendering with headings, tables, math, images, and Mermaid.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "nnyj",
   "engines": {
     "vscode": "^1.100.0"

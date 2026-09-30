@@ -195,7 +195,6 @@ export function CodeDecorationType(
 export function CodeBlockDecorationType() {
   return window.createTextEditorDecorationType({
     backgroundColor: new ThemeColor('textCodeBlock.background'),
-    isWholeLine: true, // Extend background to full line width
   });
 }
 
