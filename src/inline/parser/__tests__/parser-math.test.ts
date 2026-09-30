@@ -38,6 +38,11 @@ describe('MarkdownParser - Math regions', () => {
       expect(getMathRegions('$x $')).toHaveLength(0);
     });
 
+    it('ignores $ inside fenced code nested in a list item', () => {
+      const md = ['1. Step', '   - Add to PATH:', '     ```bash', '     export PATH="$HOME/.local/bin:$PATH"', '     ```'].join('\n');
+      expect(getMathRegions(md)).toEqual([]);
+    });
+
     it('$100$ and $200$ are valid inline (content is digits)', () => {
       const regions = getMathRegions('$100$ and $200$');
       expect(regions).toHaveLength(2);

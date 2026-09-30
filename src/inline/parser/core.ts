@@ -203,7 +203,7 @@ export class MarkdownParser {
       mermaidBlocks,
       mathRegions: scanMathRegions(normalizedText, decorations.filter(decoration =>
         decoration.type === 'tablePipe' || decoration.type === 'tableSeparatorPipe').map(decoration => decoration.startPos),
-        decorations.filter(decoration => decoration.type === 'code')),
+        decorations.filter(decoration => decoration.type === 'code' || decoration.type === 'codeBlock')),
     };
   }
 
