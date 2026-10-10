@@ -88,5 +88,6 @@ export type DecorationType =
   | "tableSeparatorPipe"
   | "tableSeparatorDash"
   | "tableCell"
+  | "tableWideChar"
   | "mention"
   | "issueReference";

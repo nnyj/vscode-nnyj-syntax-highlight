@@ -630,6 +630,20 @@ export function TableCellDecorationType() {
 }
 
 /**
+ * Creates a decoration type for one wide (CJK/fullwidth) char inside a table row.
+ *
+ * Fallback CJK fonts rarely advance exactly 2 ASCII cells, so source-padded tables drift.
+ * Forcing each wide char box to 2ch keeps pipes on the source column grid.
+ *
+ * @returns {vscode.TextEditorDecorationType} A decoration type for wide table chars
+ */
+export function TableWideCharDecorationType() {
+  return window.createTextEditorDecorationType({
+    textDecoration: 'none; display: inline-block; width: 2ch; text-align: center; overflow: hidden; vertical-align: top;',
+  });
+}
+
+/**
  * Creates a decoration type for mermaid hover indicator.
  *
  * Adds a small visual indicator (⧉) at the start of mermaid code blocks

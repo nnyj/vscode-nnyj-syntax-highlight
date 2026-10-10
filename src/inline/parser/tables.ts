@@ -71,24 +71,37 @@ export function detectCellStyle(
   return undefined;
 }
 
+/** East Asian Wide/Fullwidth: 2 monospace cells. */
+export function isWideChar(char: string): boolean {
+  const code = char.codePointAt(0)!;
+  return (
+    (code >= 0x1100 && code <= 0x115f) ||
+    (code >= 0x2e80 && code <= 0xa4cf && code !== 0x303f) ||
+    (code >= 0xac00 && code <= 0xd7a3) ||
+    (code >= 0xf900 && code <= 0xfaff) ||
+    (code >= 0xfe30 && code <= 0xfe4f) ||
+    (code >= 0xff00 && code <= 0xff60) ||
+    (code >= 0xffe0 && code <= 0xffe6) ||
+    (code >= 0x20000 && code <= 0x3fffd)
+  );
+}
+
 export function measureTextWidth(plain: string): number {
   let width = 0;
-  let cjkCount = 0;
-  for (const char of plain) {
-    const code = char.codePointAt(0)!;
-    if (
-      (code >= 0x2e80 && code <= 0x9fff) ||
-      (code >= 0xf900 && code <= 0xfaff) ||
-      (code >= 0xfe30 && code <= 0xfe4f) ||
-      (code >= 0x20000 && code <= 0x2fa1f)
-    ) {
-      width += 2;
-      cjkCount++;
-    } else {
-      width += 1;
-    }
+  for (const char of plain) width += isWideChar(char) ? 2 : 1;
+  return width;
+}
+
+/** Ranges of wide chars, rendered at exactly 2ch so pipes align when the font's CJK glyphs are not 2 cells. */
+export function findWideCharRanges(text: string, lineStart: number, lineEnd: number): Array<[number, number]> {
+  const ranges: Array<[number, number]> = [];
+  let pos = lineStart;
+  while (pos < lineEnd) {
+    const char = String.fromCodePoint(text.codePointAt(pos)!);
+    if (isWideChar(char)) ranges.push([pos, pos + char.length]);
+    pos += char.length;
   }
-  return width + Math.ceil(cjkCount * 0.25);
+  return ranges;
 }
 
 export function findPipePositions(

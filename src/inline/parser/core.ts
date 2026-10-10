@@ -35,6 +35,7 @@ import {
   detectCellStyle as detectCellStyleHelper,
   extractCellPlainText as extractCellPlainTextHelper,
   findPipePositions as findPipePositionsHelper,
+  findWideCharRanges as findWideCharRangesHelper,
   getLineRange as getLineRangeHelper,
   measureTextWidth as measureTextWidthHelper,
   normalizePipePositions as normalizePipePositionsHelper,
@@ -893,6 +894,10 @@ export class MarkdownParser {
       const { positions: pipes, isVirtual } = normalizePipePositionsHelper(
         text, lineStart, trimmedLineEnd, rawPipes,
       );
+
+      for (const [startPos, endPos] of findWideCharRangesHelper(text, lineStart, trimmedLineEnd)) {
+        decorations.push({ startPos, endPos, type: "tableWideChar" });
+      }
 
       // Only decorate real (non-virtual) pipes
       for (let pIdx = 0; pIdx < pipes.length; pIdx++) {
