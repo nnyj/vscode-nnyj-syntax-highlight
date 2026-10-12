@@ -1,6 +1,7 @@
 const vscode = require('vscode');
 const indented_table = require('./indented_table');
 const shell_comment = require('./shell_comment');
+const { preview_highlight } = require('./preview_highlight');
 
 let stop_inline;
 
@@ -37,7 +38,10 @@ function activate(context) {
     { dispose: () => stop_inline() },
   );
   update_inline();
-  return { get inline() { return inline_api; } };
+  return {
+    get inline() { return inline_api; },
+    extendMarkdownIt: md => md.use(preview_highlight),
+  };
 }
 
 function deactivate() {

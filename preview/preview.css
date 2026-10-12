@@ -1,0 +1,37 @@
+/* Mirrors the Dark Modern textMateRules in user settings.json. */
+.vscode-dark strong {
+  color: #57a64a;
+}
+
+.vscode-dark em,
+.vscode-dark .nnyj-bracket {
+  color: #ceba78;
+}
+
+.vscode-dark :is(h1, h2, h3, h4, h5, h6) {
+  color: #3474bb;
+}
+
+.vscode-dark :not(pre) > code,
+.vscode-dark a,
+.vscode-dark pre code:not([class*="language-"]) {
+  color: #ce9178;
+}
+
+.vscode-dark .nnyj-colon {
+  color: #9cdcfe;
+}
+
+.vscode-dark .nnyj-highlight {
+  color: #f7f42e;
+}
+
+.vscode-dark .nnyj-arrow {
+  color: #97ff42;
+  font-weight: bold;
+}
+
+.vscode-dark .nnyj-comment,
+.vscode-dark .nnyj-comment * {
+  color: #57a64a;
+}

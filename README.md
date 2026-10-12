@@ -48,6 +48,12 @@ Fenced code blocks inside list items lose syntax highlighting for bash/sh/zsh, d
 
 `#` comment lines inside fenced bash/sh/zsh blocks are colored via programmatic decoration, working around a VS Code TextMate tokenization limitation that consumes the first content line before `source.shell` runs.
 
+### Markdown preview
+
+- The built-in preview colors arrows, colons, brackets, comments, and `==highlight==` like the editor.
+- `preview/preview.css` holds the colors for dark themes and must match `textMateRules`.
+- Bold, italic, headings, inline code, links, and unlabeled code blocks use the same colors.
+
 ### Table decorations
 
 Pipe-delimited Markdown tables use 30% opacity row borders and fixed-width vertical separators. Cell text stays editable with the same layout regardless of cursor position. Table emoji occupy two-character boxes, including when inline rendering is disabled. NNYJ Tweaks supplies navigation and Unicode text padding. With inline rendering disabled, custom decorations provide bold headers and dim separator rows and pipes.
