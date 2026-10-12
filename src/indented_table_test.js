@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { Range, Position } from './inline/test/__mocks__/vscode';
+
+vi.useFakeTimers();
 
 function load_tables(text, language = 'markdown') {
   let inline_enabled = true;
@@ -39,7 +41,7 @@ function load_tables(text, language = 'markdown') {
   };
   const module = { exports: {} };
   vm.runInNewContext(fs.readFileSync(new URL('./indented_table.js', import.meta.url), 'utf8'), {
-    module, require: () => vscode,
+    module, require: () => vscode, setTimeout, clearTimeout,
   });
   module.exports.register({ subscriptions: [] });
   return {
@@ -92,13 +94,16 @@ describe('table emoji display widths', () => {
     expect(tables.emoji()).toEqual([{ text: '🔴', columns: 2, line: 9 }]);
   });
 
-  it('refreshes background documents and clears ranges after a whole-document replacement', () => {
+  it('debounces updates, refreshes background documents and clears ranges after a whole-document replacement', () => {
     const tables = load_tables('| A |\n| --- |\n| 🔴 |');
     tables.document.text = '| A |\n| --- |\n| 🟢🟢 |';
     tables.listeners.document({ document: tables.document });
+    expect(tables.emoji()).toEqual([{ text: '🟢', columns: 2, line: 2 }]);
+    vi.runAllTimers();
     expect(tables.emoji()).toEqual([{ text: '🟢🟢', columns: 4, line: 2 }]);
     tables.document.text = 'plain 中 é';
     tables.listeners.document({ document: tables.document });
+    vi.runAllTimers();
     expect(tables.emoji()).toEqual([]);
   });
 });

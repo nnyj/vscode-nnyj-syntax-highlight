@@ -22,7 +22,7 @@ jobs:
       - name: Build extension
         run: |
           npm ci
-          npm run compile --if-present
+          npm test
           npm run package
           npm run package:helper
 

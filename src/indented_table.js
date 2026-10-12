@@ -15,6 +15,7 @@ const BORDER = {
 
 let headerType, rowType, sepType, pipeType;
 let inline_enabled;
+let update_timer;
 
 function createDecorationTypes() {
   disposeDecorationTypes();
@@ -169,7 +170,10 @@ function register(context) {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument(e => {
-      vscode.window.visibleTextEditors.filter(editor => editor.document === e.document).forEach(update);
+      clearTimeout(update_timer);
+      update_timer = setTimeout(() => {
+        vscode.window.visibleTextEditors.filter(editor => editor.document === e.document).forEach(update);
+      }, 100);
     })
   );
 
@@ -179,6 +183,7 @@ function register(context) {
 }
 
 function dispose() {
+  clearTimeout(update_timer);
   disposeDecorationTypes();
 }
 

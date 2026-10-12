@@ -2,7 +2,7 @@
   "name": "nnyj-syntax-highlight",
   "displayName": "NNYJ Syntax Highlight",
   "description": "Custom syntax colors and inline Markdown rendering with headings, tables, math, images, and Mermaid.",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "publisher": "nnyj",
   "engines": {
     "vscode": "^1.100.0"
@@ -343,6 +343,7 @@
     "build": "node scripts/build.js",
     "vscode:prepublish": "npm run build",
     "package": "vsce package",
+    "install:local": "node scripts/vsix_install.js",
     "package:helper": "cd inset_helper && vsce package --skip-license --out ..",
     "test": "vitest run"
   },
@@ -358,7 +359,6 @@
   },
   "dependencies": {
     "cheerio": "1.2.0",
-    "katex": "^0.17.0",
     "mathjax-full": "^3.2.2",
     "mermaid": "11.15.0",
     "remark-gfm": "4.0.1",

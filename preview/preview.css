@@ -35,3 +35,13 @@
 .vscode-dark .nnyj-comment * {
   color: #57a64a;
 }
+
+/* Matches editor table borders, !important beats the built-in per-theme header and row colors. */
+table {
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border: 1px solid rgba(128, 128, 128, 0.3) !important;
+}

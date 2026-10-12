@@ -37,6 +37,20 @@ describe('preview_highlight', () => {
   it('leaves inline code alone', () => {
     expect(render('`a -> b:`')).toBe('<code>a -&gt; b:</code>');
   });
+
+  it('colors __x__ as highlight like the editor grammar', () => {
+    expect(render('__a__ **b**')).toBe('<strong class="nnyj-highlight">a</strong> <strong>b</strong>');
+  });
+});
+
+describe('preview.css', () => {
+  it('matches the README textMateRules colors', () => {
+    const css = fs.readFileSync(new URL('../preview/preview.css', import.meta.url), 'utf8');
+    const readme = fs.readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+    const rules = [...readme.matchAll(/"scope": "markdown\.(\w+)",\s*"settings": \{ "foreground": "(#\w+)"/g)];
+    expect(rules).toHaveLength(5);
+    for (const [, name, color] of rules) expect(css).toMatch(new RegExp(`\\.nnyj-${name}[^{]*\\{\\s*color: ${color}`, 'i'));
+  });
 });
 
 describe('css_for_notebook', () => {

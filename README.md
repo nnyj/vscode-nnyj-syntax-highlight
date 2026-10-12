@@ -50,7 +50,8 @@ Fenced code blocks inside list items lose syntax highlighting for bash/sh/zsh, d
 
 ### Markdown preview
 
-- The built-in preview colors arrows, colons, brackets, comments, and `==highlight==` like the editor.
+- The built-in preview colors arrows, colons, brackets, comments, `==highlight==`, and `__highlight__` like the editor.
+- Preview tables use the editor border color on every cell edge, in all themes.
 - `preview/preview.css` holds the colors for dark themes and must match `textMateRules`.
 - Bold, italic, headings, inline code, links, and unlabeled code blocks use the same colors.
 - Notebook Markdown cells get the same colors through a `vscode.markdown-it-renderer` extension.
@@ -94,8 +95,7 @@ Unlabeled ` ``` ` blocks can be colored via the `markup.fenced_code` scope (3-se
 
 ```sh
 npm ci
-npm run package
-code --install-extension nnyj-syntax-highlight-0.1.0.vsix
+npm run install:local
 ```
 
 ## Development
@@ -105,6 +105,8 @@ code --install-extension nnyj-syntax-highlight-0.1.0.vsix
 - `npm test` runs regression tests.
 - `npm run build` checks TypeScript, bundles the extension, and copies Mermaid assets into `dist/`.
 - Packaging runs the build automatically.
+- `npm version patch --no-git-tag-version` bumps `package.json` and the lockfile.
+- `npm run install:local` packages `nnyj-syntax-highlight-<version>.vsix`, deletes older vsix files, and installs it.
 - `npm run package:helper` packages [inset_helper/](inset_helper/README.md), a separate vsix wrapping the proposed `editorInsets` API. Only the main extension goes to the Marketplace, it rejects proposed APIs.
 
 ## License

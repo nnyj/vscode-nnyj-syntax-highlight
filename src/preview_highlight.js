@@ -107,6 +107,8 @@ function wrap_children(state, children) {
           push_html('</span>');
         }
       }
+      // The editor grammar colors `__x__` as highlight, markdown-it parses it as strong.
+      if (child.type === 'strong_open' && child.markup === '__') child.attrJoin('class', 'nnyj-highlight');
       out.push(child);
       level += child.nesting;
     }
@@ -119,7 +121,7 @@ function wrap_children(state, children) {
 
 // Notebook cells render in a shadow root, so the body theme class needs :host-context.
 function css_for_notebook(css) {
-  return css.replace(/^\.vscode-dark /gm, ':host-context(.vscode-dark) ');
+  return css.replace(/\.vscode-dark /g, ':host-context(.vscode-dark) ');
 }
 
 module.exports = { preview_highlight, css_for_notebook };
