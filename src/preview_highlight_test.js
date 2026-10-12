@@ -1,6 +1,7 @@
+import fs from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import markdown_it from 'markdown-it';
-import { preview_highlight } from './preview_highlight';
+import { preview_highlight, css_for_notebook } from './preview_highlight';
 
 const render = text => markdown_it({ breaks: true }).use(preview_highlight).renderInline(text);
 
@@ -35,5 +36,14 @@ describe('preview_highlight', () => {
 
   it('leaves inline code alone', () => {
     expect(render('`a -> b:`')).toBe('<code>a -&gt; b:</code>');
+  });
+});
+
+describe('css_for_notebook', () => {
+  it('scopes every dark selector to the host theme', () => {
+    const css = fs.readFileSync(new URL('../preview/preview.css', import.meta.url), 'utf8');
+    const notebook_css = css_for_notebook(css);
+    expect(notebook_css).toContain(':host-context(.vscode-dark) strong');
+    expect(notebook_css).not.toMatch(/^\.vscode-dark/m);
   });
 });

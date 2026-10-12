@@ -2,7 +2,7 @@
   "name": "nnyj-syntax-highlight",
   "displayName": "NNYJ Syntax Highlight",
   "description": "Custom syntax colors and inline Markdown rendering with headings, tables, math, images, and Mermaid.",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "publisher": "nnyj",
   "engines": {
     "vscode": "^1.100.0"
@@ -41,6 +41,16 @@
     "markdown.markdownItPlugins": true,
     "markdown.previewStyles": [
       "./preview/preview.css"
+    ],
+    "notebookRenderer": [
+      {
+        "id": "nnyj.markdown-it-preview-highlight",
+        "displayName": "NNYJ Markdown cell colors",
+        "entrypoint": {
+          "extends": "vscode.markdown-it-renderer",
+          "path": "./dist/notebook_preview.js"
+        }
+      }
     ],
     "grammars": [
       {

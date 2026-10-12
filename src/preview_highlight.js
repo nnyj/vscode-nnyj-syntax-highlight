@@ -117,4 +117,9 @@ function wrap_children(state, children) {
   return out;
 }
 
-module.exports = { preview_highlight };
+// Notebook cells render in a shadow root, so the body theme class needs :host-context.
+function css_for_notebook(css) {
+  return css.replace(/^\.vscode-dark /gm, ':host-context(.vscode-dark) ');
+}
+
+module.exports = { preview_highlight, css_for_notebook };

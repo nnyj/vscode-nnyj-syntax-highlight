@@ -53,6 +53,7 @@ Fenced code blocks inside list items lose syntax highlighting for bash/sh/zsh, d
 - The built-in preview colors arrows, colons, brackets, comments, and `==highlight==` like the editor.
 - `preview/preview.css` holds the colors for dark themes and must match `textMateRules`.
 - Bold, italic, headings, inline code, links, and unlabeled code blocks use the same colors.
+- Notebook Markdown cells get the same colors through a `vscode.markdown-it-renderer` extension.
 
 ### Table decorations
 

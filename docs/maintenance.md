@@ -11,6 +11,7 @@
 | `src/indented_table.js` | Table row borders |
 | `src/shell_comment.js` | Shell comment colors |
 | `src/preview_highlight.js`, `preview/preview.css` | Markdown preview colors |
+| `src/notebook_preview.js` | Notebook Markdown cell colors |
 | `src/inline/parser/` | Markdown recognition and normalized decoration offsets |
 | `src/inline/decorator/visibility-model.ts` | Rendered, faint, and raw syntax states |
 | `src/inline/decorations.ts` | Decoration appearance |

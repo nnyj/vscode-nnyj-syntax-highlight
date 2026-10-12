@@ -23,6 +23,15 @@ esbuild.buildSync({
   outfile: path.join(output_dir, 'extension.js'),
 });
 
+esbuild.buildSync({
+  entryPoints: [path.join(root_dir, 'src/notebook_preview.js')],
+  bundle: true,
+  platform: 'browser',
+  format: 'esm',
+  loader: { '.css': 'text' },
+  outfile: path.join(output_dir, 'notebook_preview.js'),
+});
+
 if (path.dirname(mermaid_target) !== output_dir) throw new Error('Invalid Mermaid output path');
 fs.rmSync(mermaid_target, { recursive: true, force: true });
 fs.mkdirSync(mermaid_target, { recursive: true });
