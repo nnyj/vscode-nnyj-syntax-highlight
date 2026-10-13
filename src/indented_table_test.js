@@ -14,6 +14,8 @@ function load_tables(text, language = 'markdown') {
     text,
     get lineCount() { return this.text.split('\n').length; },
     lineAt(line) { return { text: this.text.split('\n')[line] }; },
+    getText(range) { return this.lineAt(range.start.line).text.slice(range.start.character, range.end.character); },
+    uri: { toString: () => 'file:///a.md' },
   };
   const editor = { document, setDecorations: (type, items) => ranges.set(type, items) };
   const listen = name => callback => {
@@ -27,6 +29,10 @@ function load_tables(text, language = 'markdown') {
       }
     },
     DecorationRangeBehavior: { ClosedClosed: 1 },
+    MarkdownString: class { constructor(value) { this.value = value; } },
+    Hover: class { constructor(contents, range) { Object.assign(this, { contents, range }); } },
+    languages: { registerHoverProvider: (selector, provider) => (listeners.hover = provider, { dispose() {} }) },
+    commands: { registerCommand: () => ({ dispose() {} }) },
     window: {
       visibleTextEditors: [editor],
       createTextEditorDecorationType: options => ({ options, dispose() { ranges.delete(this); } }),
@@ -55,11 +61,19 @@ function load_tables(text, language = 'markdown') {
         })) : [];
       });
     },
+    styled(option) {
+      return [...ranges].flatMap(([type, items]) => type.options[option] ? items.map(range => [
+        type.options[option],
+        document.lineAt(range.start.line).text.slice(range.start.character, range.end.character),
+      ]) : []);
+    },
     set_inline(value) {
       inline_enabled = value;
       listeners.config({ affectsConfiguration: () => true });
     },
     dispose: () => module.exports.dispose(),
+    hover: (line, character) => listeners.hover.provideHover(document, new Position(line, character)),
+    flip_header: module.exports.flip_header,
   };
 }
 
@@ -107,3 +121,38 @@ describe('table emoji display widths', () => {
     expect(tables.emoji()).toEqual([]);
   });
 });
+
+describe('table cell levels', () => {
+  const red = 'rgba(239,68,68,0.5)';
+  const yellow = 'rgba(234,179,8,0.5)';
+  const green = 'rgba(34,197,94,0.5)';
+
+  it('colors cells starting with a status circle', () => {
+    const tables = load_tables('| A | B |\n| --- | --- |\n| 🟢 12 | x 🔴 |\n|🔴| 🟡 a |');
+    expect(tables.styled('backgroundColor')).toEqual([[red, '🔴'], [yellow, ' 🟡 a '], [green, ' 🟢 12 ']]);
+  });
+
+  it('scales numeric columns red to green, flipped by a down arrow header', () => {
+    const tables = load_tables('| Score | Latency ↓ | Name |\n| --- | --- | --- |\n| 10 | 1,000 ms | a |\n| 30 | 500 ms | b |\n| 20 | 🟡 x | c |');
+    expect(tables.styled('backgroundColor')).toEqual([
+      [red, ' 10 '], [red, ' 1,000 ms '], [yellow, ' 20 '], [yellow, ' 🟡 x '], [green, ' 30 '], [green, ' 500 ms '],
+    ]);
+  });
+
+  it('offers a scale flip on numeric headers only', () => {
+    const tables = load_tables('| Score | Name |\n| ----- | ---- |\n| 10    | a    |\n| 30    | b    |');
+    expect(tables.hover(0, 3).contents.value).toMatch(/^Green = higher value\. \[Flip ↕\]\(command:nnyjTables\.flipScale\?/);
+    expect(tables.hover(0, 10)).toBeUndefined();
+    expect(tables.hover(2, 3)).toBeUndefined();
+  });
+
+  it('adds and removes the down arrow while keeping the cell width', () => {
+    expect(tables_flip(' Price    ')).toBe(' Price ↓  ');
+    expect(tables_flip(' Price ↓  ')).toBe(' Price    ');
+    expect(tables_flip(' Price ')).toBe(' Price ↓ ');
+  });
+});
+
+function tables_flip(cell) {
+  return load_tables('').flip_header(cell);
+}
