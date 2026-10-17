@@ -8,7 +8,7 @@ import type {
   TableCell,
   Text,
 } from 'mdast';
-import type { ScopeRange } from './types';
+import type { DecorationType, ScopeRange } from './types';
 import { addScope } from './common';
 
 export function extractCellPlainText(cell: TableCell): string {
@@ -92,14 +92,17 @@ export function measureTextWidth(plain: string): number {
   return width;
 }
 
-/** Ranges of wide chars, rendered at exactly 2ch so pipes align when the font's CJK glyphs are not 2 cells. */
-export function findWideCharRanges(text: string, lineStart: number, lineEnd: number): Array<[number, number]> {
-  const ranges: Array<[number, number]> = [];
-  let pos = lineStart;
-  while (pos < lineEnd) {
-    const char = String.fromCodePoint(text.codePointAt(pos)!);
-    if (isWideChar(char)) ranges.push([pos, pos + char.length]);
-    pos += char.length;
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+const non_narrow_pattern = /[\p{Emoji_Presentation}\p{Mark}\p{Default_Ignorable_Code_Point}]/u;
+
+/** Wide chars render at exactly 2ch, non-ASCII narrow chars (☆ ♥ ⁂) at 1ch, so pipes align when fallback glyphs are off-grid. */
+export function findFixedWidthRanges(text: string, lineStart: number, lineEnd: number): Array<[number, number, DecorationType]> {
+  const ranges: Array<[number, number, DecorationType]> = [];
+  for (const { segment, index } of graphemes.segment(text.slice(lineStart, lineEnd))) {
+    const char = String.fromCodePoint(segment.codePointAt(0)!);
+    const start = lineStart + index;
+    if (isWideChar(char)) ranges.push([start, start + char.length, 'tableWideChar']);
+    else if (char === segment && char.codePointAt(0)! > 0x7f && !non_narrow_pattern.test(char)) ranges.push([start, start + char.length, 'tableNarrowChar']);
   }
   return ranges;
 }

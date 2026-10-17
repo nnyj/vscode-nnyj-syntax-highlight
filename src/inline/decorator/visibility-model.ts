@@ -67,7 +67,7 @@ export function filterDecorationsForEditor(
 
   // Table decoration types that use per-range replacement rendering
   const tableTypes = new Set<DecorationType>([
-    'tablePipe', 'tableSeparatorPipe', 'tableSeparatorDash', 'tableCell', 'tableWideChar',
+    'tablePipe', 'tableSeparatorPipe', 'tableSeparatorDash', 'tableCell', 'tableWideChar', 'tableNarrowChar',
   ]);
 
   const tableScopes = scopes.filter(s => s.kind === 'table');
@@ -216,8 +216,8 @@ export function filterDecorationsForEditor(
 
     if (tableTypes.has(decoration.type)) {
       if (decoration.type === 'tableCell' || decoration.type === 'tableSeparatorDash') continue;
-      if (decoration.type === 'tableWideChar') {
-        filtered.set('tableWideChar', [...(filtered.get('tableWideChar') || []), range]);
+      if (decoration.type === 'tableWideChar' || decoration.type === 'tableNarrowChar') {
+        filtered.set(decoration.type, [...(filtered.get(decoration.type) || []), range]);
         continue;
       }
       if (decoration.replacement !== undefined) {

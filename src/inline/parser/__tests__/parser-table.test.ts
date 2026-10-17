@@ -23,6 +23,13 @@ describe('MarkdownParser - Tables', () => {
       expect(parser.extractDecorationsWithScopes(md).mathRegions).toEqual([]);
     });
 
+    it('pins narrow symbols to 1ch and skips emoji, CJK, and ASCII', () => {
+      const md = '| A |\n|---|\n| a☆♥⁂ 🆕 ♥️ 愛 |';
+      const result = parser.extractDecorations(md);
+      const narrow = byType(result, 'tableNarrowChar').map((d) => md.slice(d.startPos, d.endPos));
+      expect(narrow).toEqual(['☆', '♥', '⁂']);
+    });
+
     it('should create tablePipe decorations for pipe characters', () => {
       const md = '| A | B |\n|---|---|\n| 1 | 2 |';
       const result = parser.extractDecorations(md);

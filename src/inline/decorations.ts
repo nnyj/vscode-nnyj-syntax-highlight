@@ -643,6 +643,13 @@ export function TableWideCharDecorationType() {
   });
 }
 
+/** Forces narrow non-ASCII symbols (☆ ♥ ⁂) to 1ch, fallback fonts draw them wider than the grid. */
+export function TableNarrowCharDecorationType() {
+  return window.createTextEditorDecorationType({
+    textDecoration: 'none; display: inline-block; width: 1ch; text-align: center; vertical-align: top;',
+  });
+}
+
 /**
  * Creates a decoration type for mermaid hover indicator.
  *
