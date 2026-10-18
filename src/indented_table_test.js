@@ -139,6 +139,11 @@ describe('table cell levels', () => {
     ]);
   });
 
+  it('skips empty and dash cells in numeric columns', () => {
+    const tables = load_tables('| Score | Rival |\n| --- | --- |\n| 10 | - |\n| - | x |\n|  | - |\n| 30 | y |');
+    expect(tables.styled('backgroundColor')).toEqual([[red, ' 10 '], [green, ' 30 ']]);
+  });
+
   it('offers a scale flip on numeric headers only', () => {
     const tables = load_tables('| Score | Name |\n| ----- | ---- |\n| 10    | a    |\n| 30    | b    |');
     expect(tables.hover(0, 3).contents.value).toMatch(/^Green = higher value\. \[Flip ↕\]\(command:nnyjTables\.flipScale\?/);

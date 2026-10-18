@@ -58,7 +58,7 @@ Fenced code blocks inside list items lose syntax highlighting for bash/sh/zsh, d
 
 ### Table decorations
 
-Pipe-delimited Markdown tables use 30% opacity row borders and fixed-width vertical separators. Cell text stays editable with the same layout regardless of cursor position. Table emoji occupy two-character boxes, including when inline rendering is disabled. NNYJ Tweaks supplies navigation and Unicode text padding. With inline rendering disabled, custom decorations provide bold headers and dim separator rows and pipes. Cells starting with 🟢, 🟡 or 🔴 get a matching background. Numeric columns shade red (lowest) to green (highest), `↓` in the header flips the scale. Hovering a numeric header offers a link that adds or removes the `↓`.
+Pipe-delimited Markdown tables use 30% opacity row borders and fixed-width vertical separators. Cell text stays editable with the same layout regardless of cursor position. Table emoji occupy two-character boxes, including when inline rendering is disabled. NNYJ Tweaks supplies navigation and Unicode text padding. With inline rendering disabled, custom decorations provide bold headers and dim separator rows and pipes. Cells starting with 🟢, 🟡 or 🔴 get a matching background. Numeric columns shade red (lowest) to green (highest), `↓` in the header flips the scale. Dash cells in numeric columns are skipped. Hovering a numeric header offers a link that adds or removes the `↓`.
 
 ### Terraform HCL injection
 

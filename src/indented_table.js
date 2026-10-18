@@ -11,6 +11,7 @@ const numeric_heads = new WeakMap();
 const level_colors = ['rgba(239,68,68,0.5)', 'rgba(249,115,22,0.5)', 'rgba(234,179,8,0.5)', 'rgba(132,204,22,0.5)', 'rgba(34,197,94,0.5)'];
 const circle_levels = { '🔴': 0, '🟡': 2, '🟢': 4 };
 const RE_NUMBER = /^[-+]?\d[\d,]*(\.\d+)?\s*[%a-zA-Z]*$/;
+const RE_PLACEHOLDER = /^(-+|–|—)$/;
 
 const BORDER = {
   borderWidth: '0 0 1px 0',
@@ -75,7 +76,7 @@ function cell_levels(doc, start, sepNum, end, levels, heads) {
   const rows = [];
   for (let n = sepNum + 1; n <= end; n++) rows.push(cells(doc.lineAt(n).text).map(cell => ({ ...cell, line: n })));
   cells(doc.lineAt(start).text).forEach((head, col) => {
-    const column = rows.map(row => row[col]).filter(cell => cell?.text);
+    const column = rows.map(row => row[col]).filter(cell => cell?.text && !RE_PLACEHOLDER.test(cell.text));
     const plain = column.filter(cell => circle_levels[[...cell.text][0]] === undefined);
     const push = (cell, level) => levels[level].push(new vscode.Range(cell.line, cell.start, cell.line, cell.end));
     column.filter(cell => !plain.includes(cell)).forEach(cell => push(cell, circle_levels[[...cell.text][0]]));
