@@ -145,9 +145,9 @@ describe('table cell levels', () => {
   });
 
   it('takes the leading number and skips cells not starting with one', () => {
-    const tables = load_tables('| Cost | Speed |\n| --- | --- |\n| 1 | GPT-4 |\n| [9](#sum) | 6 (1.2x) |\n| 3 | 2 |');
+    const tables = load_tables('| Cost | Speed |\n| --- | --- |\n| $1 | GPT-4 |\n| [9](#sum) | 6 (1.2x) |\n| ~3 | 2 |');
     expect(tables.styled('backgroundColor')).toEqual([
-      [red, ' 1 '], [red, ' 2 '], [green, ' 3 '], [green, ' 6 (1.2x) '],
+      [red, ' $1 '], [red, ' 2 '], [green, ' ~3 '], [green, ' 6 (1.2x) '],
     ]);
   });
 

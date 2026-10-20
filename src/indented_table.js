@@ -10,8 +10,8 @@ const numeric_heads = new WeakMap();
 // Cell backgrounds from red (level 0) to green (level 4).
 const level_colors = ['rgba(239,68,68,0.5)', 'rgba(249,115,22,0.5)', 'rgba(234,179,8,0.5)', 'rgba(132,204,22,0.5)', 'rgba(34,197,94,0.5)'];
 const circle_levels = { '🔴': 0, '🟡': 2, '🟢': 4 };
-// Leading number, trailing text like ` ms` or ` (1.2x)` is ignored.
-const RE_NUMBER = /^[-+]?\d[\d,]*(?:\.\d+)?/;
+// Leading number after an optional `~` or `$`, trailing text like ` ms` or ` (1.2x)` is ignored.
+const RE_NUMBER = /^[~$]*([-+]?\d[\d,]*(?:\.\d+)?)/;
 const RE_PLACEHOLDER = /^(-+|–|—)$/;
 
 const BORDER = {
@@ -84,7 +84,7 @@ function cell_levels(doc, start, sepNum, end, levels, heads) {
     const numeric = plain.filter(cell => RE_NUMBER.test(cell.text));
     if (!numeric.length) return;
     heads.push(new vscode.Range(start, head.start, start, head.end));
-    const values = numeric.map(cell => parseFloat(RE_NUMBER.exec(cell.text)[0].replace(/,/g, '')));
+    const values = numeric.map(cell => parseFloat(RE_NUMBER.exec(cell.text)[1].replace(/,/g, '')));
     const min = Math.min(...values);
     const max = Math.max(...values);
     if (max === min) return;
