@@ -49,13 +49,13 @@ function register(context) {
   });
 
   context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(applyDecorations),
+    vscode.window.onDidChangeVisibleTextEditors(editors => editors.forEach(applyDecorations)),
     vscode.workspace.onDidChangeTextDocument(e => {
-      const editor = vscode.window.activeTextEditor;
-      if (editor && e.document === editor.document) {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => applyDecorations(editor), 100);
-      }
+      if (e.document.languageId !== 'markdown') return;
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        vscode.window.visibleTextEditors.filter(editor => editor.document === e.document).forEach(applyDecorations);
+      }, 100);
     })
   );
 

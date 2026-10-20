@@ -27,7 +27,6 @@ import { applyMathDecorationsForEditor } from './decorator/math-region-applicati
  */
 const PERFORMANCE_CONSTANTS = {
   DEBOUNCE_TIMEOUT_MS: 150,
-  IDLE_CALLBACK_TIMEOUT_MS: 300,
   MERMAID_MAX_CONCURRENCY: 4,
 } as const;
 
@@ -82,10 +81,7 @@ export class Decorator {
   constructor(parseCache: MarkdownParseCache, workspaceState?: Memento) {
     this.parseCache = parseCache;
     this.fileDecorationState = new FileDecorationStateStore(workspaceState);
-    this.updateScheduler = new DecoratorUpdateScheduler(
-      PERFORMANCE_CONSTANTS.DEBOUNCE_TIMEOUT_MS,
-      PERFORMANCE_CONSTANTS.IDLE_CALLBACK_TIMEOUT_MS
-    );
+    this.updateScheduler = new DecoratorUpdateScheduler(PERFORMANCE_CONSTANTS.DEBOUNCE_TIMEOUT_MS);
     this.decorationTypes = new DecorationTypeRegistry({
       getGhostFaintOpacity: () => this.getGhostFaintOpacity(),
       getFrontmatterDelimiterOpacity: () => this.getFrontmatterDelimiterOpacity(),
@@ -168,8 +164,7 @@ export class Decorator {
    * Updates decorations for document changes (debounced with batching).
    * 
    * This method handles document content changes and uses smart debouncing to prevent
-   * excessive parsing during rapid typing. It batches multiple changes and uses
-   * requestIdleCallback when available for non-urgent updates.
+   * excessive parsing during rapid typing.
    * 
    * @param {TextDocumentChangeEvent} event - The document change event (optional)
    * 
@@ -528,9 +523,6 @@ export class Decorator {
    * @param {TextDocumentChangeEvent} event - The document change event
    */
   updateDecorationsFromChange(event: TextDocumentChangeEvent): void {
-    // For now, always invalidate cache and do full parse
-    this.invalidateCache(event.document);
-
     // Update decorations with debounce
     this.updateDecorationsForDocument(event);
   }

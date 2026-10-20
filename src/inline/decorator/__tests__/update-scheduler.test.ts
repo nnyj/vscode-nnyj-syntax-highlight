@@ -4,7 +4,7 @@ describe('DecoratorUpdateScheduler', () => {
   it('runs the latest scheduled callback after debounce', async () => {
     vi.useFakeTimers();
 
-    const scheduler = new DecoratorUpdateScheduler(10, 5);
+    const scheduler = new DecoratorUpdateScheduler(10);
     const callbackA = vi.fn();
     const callbackB = vi.fn();
     const document = {
@@ -27,7 +27,7 @@ describe('DecoratorUpdateScheduler', () => {
   it('skips outdated callbacks when document version changes', async () => {
     vi.useFakeTimers();
 
-    const scheduler = new DecoratorUpdateScheduler(10, 5);
+    const scheduler = new DecoratorUpdateScheduler(10);
     const callback = vi.fn();
     const document = {
       uri: { toString: () => 'file:///test.md' },
@@ -48,7 +48,7 @@ describe('DecoratorUpdateScheduler', () => {
   it('cancels pending work', async () => {
     vi.useFakeTimers();
 
-    const scheduler = new DecoratorUpdateScheduler(10, 5);
+    const scheduler = new DecoratorUpdateScheduler(10);
     const callback = vi.fn();
     const document = {
       uri: { toString: () => 'file:///test.md' },

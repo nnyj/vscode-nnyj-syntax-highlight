@@ -20,7 +20,7 @@ export class MarkdownParseCache {
   private cache = new Map<string, CacheEntry>();
   private accessCounter = 0;
 
-  constructor(private parser: MarkdownParser, private maxEntries = 10) {}
+  constructor(private parser: MarkdownParser, private maxEntries = 50) {}
 
   get(document: vscode.TextDocument): ParseEntry {
     const cacheKey = document.uri.toString();

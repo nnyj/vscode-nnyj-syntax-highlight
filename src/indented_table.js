@@ -227,7 +227,6 @@ function register(context) {
   };
 
   context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(update),
     vscode.window.onDidChangeVisibleTextEditors(editors => editors.forEach(update)),
     vscode.workspace.onDidChangeConfiguration(event => {
       if (!event.affectsConfiguration('nnyjEditorStyling.inline.enabled')) return;
