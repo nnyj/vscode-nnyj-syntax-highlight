@@ -56,6 +56,20 @@ describe('handleCheckboxClick', () => {
       expect(edits[0].newText).toBe('x');
     });
 
+    it('toggles [ ] to [x] when cursor is on the bullet marker', () => {
+      // "  - [ ] task" — box covers the marker at char 2
+      const editor = makeEditor('  - [ ] task', 2);
+      expect(handleCheckboxClick(editor as any)).toBe(true);
+      const edit = (workspace.applyEdit as Mock).mock.calls[0][0] as WorkspaceEdit;
+      expect(edit.getEdits()[0].newText).toBe('x');
+    });
+
+    it('returns false when cursor is in the indent or on the space before the task text', () => {
+      expect(handleCheckboxClick(makeEditor('  - [ ] task', 1) as any)).toBe(false);
+      expect(handleCheckboxClick(makeEditor('  - [ ] task', 7) as any)).toBe(false);
+      expect(handleCheckboxClick(makeEditor('  - [ ] task', 8) as any)).toBe(false);
+    });
+
     it('toggles [ ] to [x] when cursor is on the space inside brackets', () => {
       // "- [ ] task" — space at char 3
       const editor = makeEditor('- [ ] task', 3);
@@ -95,11 +109,10 @@ describe('handleCheckboxClick', () => {
   });
 
   describe('cursor positioning after toggle', () => {
-    it('moves cursor past the checkbox bracket after toggling', () => {
-      // "- [ ] task" — checkbox `[` at index 2, bracketEnd = 2+3 = 5, cursor set to bracketEnd+1 = 6
+    it('moves cursor to line end after toggling', () => {
       const editor = makeEditor('- [ ] task', 3);
       handleCheckboxClick(editor as any);
-      expect(editor.selection.active.character).toBe(6);
+      expect(editor.selection.active.character).toBe(10);
       expect(editor.selection.active.line).toBe(0);
     });
   });

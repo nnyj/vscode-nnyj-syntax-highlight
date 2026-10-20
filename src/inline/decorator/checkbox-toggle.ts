@@ -24,9 +24,12 @@ export function handleCheckboxClick(editor: TextEditor): boolean {
     const bracketStart = match.index;
     const bracketEnd = match.index + 3; // [ ] is 3 chars
 
-    // Check if cursor is on or inside the checkbox [ ] range
-    // Include bracketStart because clicking the ☐ decoration lands cursor there
-    if (cursorChar >= bracketStart && cursorChar <= bracketEnd) {
+    // Bullet task box covers the transparent `- [ ]`, so clicks on its left part land on the marker
+    const bulletPrefix = /^([\s>]*)[-*+]\s+$/.exec(line.text.slice(0, bracketStart));
+    const clickStart = bulletPrefix ? bulletPrefix[1].length : bracketStart;
+
+    // bracketEnd excluded, a click on the space before the task text lands there
+    if (cursorChar >= clickStart && cursorChar < bracketEnd) {
       const currentState = match[1];
       const newState = currentState === ' ' ? 'x' : ' ';
 
@@ -41,8 +44,8 @@ export function handleCheckboxClick(editor: TextEditor): boolean {
 
       workspace.applyEdit(edit);
 
-      // Move cursor after the checkbox to avoid re-triggering
-      const newCursorPos = new Position(selection.active.line, bracketEnd + 1);
+      // Park cursor at line end, a cursor left on textStart blocks the next click from firing a selection change
+      const newCursorPos = new Position(selection.active.line, line.text.length);
       editor.selection = new Selection(newCursorPos, newCursorPos);
 
       return true;

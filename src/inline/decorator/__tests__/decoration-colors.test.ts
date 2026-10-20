@@ -148,44 +148,30 @@ describe('decoration creation with color (hex vs theme)', () => {
       expect(CheckboxCheckedDecorationType()).toBeDefined();
     });
 
-    it('CheckboxCheckedDecorationType has after block with contentText "✔"', () => {
+    it('CheckboxCheckedDecorationType draws ✔ in the before box', () => {
       resetTextEditorDecorationTypeOptionsCapture();
       CheckboxCheckedDecorationType();
       const opts = getLastTextEditorDecorationTypeOptions() as Record<string, unknown>;
-      expect(opts.after).toBeDefined();
-      expect((opts.after as Record<string, unknown>).contentText).toBe('✔');
+      const before = opts.before as Record<string, unknown>;
+      expect(before.contentText).toBe('✔');
+      expect(before.textDecoration).toContain('pointer-events: none');
+      expect((opts.after as Record<string, unknown>).textDecoration).toContain('pointer-events: none');
     });
 
-    it('CheckboxCheckedDecorationType after block includes display: inline-block in textDecoration', () => {
-      resetTextEditorDecorationTypeOptionsCapture();
-      CheckboxCheckedDecorationType();
-      const opts = getLastTextEditorDecorationTypeOptions() as Record<string, unknown>;
-      const after = opts.after as Record<string, unknown>;
-      expect(after.textDecoration).toContain('display: inline-block');
-    });
-
-    it('CheckboxCheckedDecorationType after block includes cursor: pointer in textDecoration', () => {
-      resetTextEditorDecorationTypeOptionsCapture();
-      CheckboxCheckedDecorationType();
-      const opts = getLastTextEditorDecorationTypeOptions() as Record<string, unknown>;
-      const after = opts.after as Record<string, unknown>;
-      expect(after.textDecoration).toContain('cursor: pointer');
-    });
-
-    it('CheckboxUncheckedDecorationType after block has space contentText', () => {
+    it('CheckboxUncheckedDecorationType draws an empty before box', () => {
       resetTextEditorDecorationTypeOptionsCapture();
       CheckboxUncheckedDecorationType();
       const opts = getLastTextEditorDecorationTypeOptions() as Record<string, unknown>;
-      expect(opts.after).toBeDefined();
-      expect((opts.after as Record<string, unknown>).contentText).toBe(' ');
+      expect((opts.before as Record<string, unknown>).contentText).toBe(' ');
     });
 
-    it('CheckboxUncheckedDecorationType after block includes cursor: pointer in textDecoration', () => {
+    it('checkbox source text stays clickable under the box', () => {
       resetTextEditorDecorationTypeOptionsCapture();
       CheckboxUncheckedDecorationType();
       const opts = getLastTextEditorDecorationTypeOptions() as Record<string, unknown>;
-      const after = opts.after as Record<string, unknown>;
-      expect(after.textDecoration).toContain('cursor: pointer');
+      expect(opts.textDecoration).toContain('color: transparent');
+      expect(opts.textDecoration).toContain('cursor: pointer');
+      expect(opts.textDecoration).not.toContain('display: none');
     });
   });
 
