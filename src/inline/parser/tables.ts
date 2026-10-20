@@ -101,7 +101,7 @@ export function findFixedWidthRanges(text: string, lineStart: number, lineEnd: n
   for (const { segment, index } of graphemes.segment(text.slice(lineStart, lineEnd))) {
     const char = String.fromCodePoint(segment.codePointAt(0)!);
     const start = lineStart + index;
-    if (isWideChar(char)) ranges.push([start, start + char.length, 'tableWideChar']);
+    if (isWideChar(char)) ranges.push([start, start + char.length, 'wideChar']);
     else if (char === segment && char.codePointAt(0)! > 0x7f && !non_narrow_pattern.test(char)) ranges.push([start, start + char.length, 'tableNarrowChar']);
   }
   return ranges;

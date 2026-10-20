@@ -1,5 +1,6 @@
 import { Range, ThemeColor, type DecorationOptions, type Position, type TextEditor } from 'vscode';
 import type { DecorationRange, DecorationType } from '../parser';
+import { isWideChar } from '../parser/tables';
 import { isMarkerDecorationType } from './decoration-categories';
 import { isCopiedFence } from '../code_block_copy';
 
@@ -67,7 +68,7 @@ export function filterDecorationsForEditor(
 
   // Table decoration types that use per-range replacement rendering
   const tableTypes = new Set<DecorationType>([
-    'tablePipe', 'tableSeparatorPipe', 'tableSeparatorDash', 'tableCell', 'tableWideChar', 'tableNarrowChar',
+    'tablePipe', 'tableSeparatorPipe', 'tableSeparatorDash', 'tableCell', 'wideChar', 'tableNarrowChar',
   ]);
 
   const tableScopes = scopes.filter(s => s.kind === 'table');
@@ -116,7 +117,9 @@ export function filterDecorationsForEditor(
     if (decoration.type === 'codeBlock') {
       const fences_visible = rangeIntersectsAny(range, rawRanges) ||
         activeLines.has(range.start.line) || activeLines.has(range.end.line);
-      filtered.set('codeBlock', [...(filtered.get('codeBlock') || []), ...codeBlockCard(editor, range, fences_visible)]);
+      const { card, wide } = codeBlockCard(editor, range, fences_visible);
+      filtered.set('codeBlock', [...(filtered.get('codeBlock') || []), ...card]);
+      filtered.set('wideChar', [...(filtered.get('wideChar') || []), ...wide]);
       continue;
     }
 
@@ -216,7 +219,7 @@ export function filterDecorationsForEditor(
 
     if (tableTypes.has(decoration.type)) {
       if (decoration.type === 'tableCell' || decoration.type === 'tableSeparatorDash') continue;
-      if (decoration.type === 'tableWideChar' || decoration.type === 'tableNarrowChar') {
+      if (decoration.type === 'wideChar' || decoration.type === 'tableNarrowChar') {
         filtered.set(decoration.type, [...(filtered.get(decoration.type) || []), range]);
         continue;
       }
@@ -278,22 +281,32 @@ export function filterDecorationsForEditor(
 const FENCE_PATTERN = /^[ \t]*(`{3,}|~{3,})/;
 const COPY_BUTTON = ' ⎘';
 const COPIED_LABEL = ' ✓ Copied';
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+// Emoji and CJK fallback glyphs render off the monospace grid, so code blocks pin them to 2ch.
+const EMOJI_PATTERN = /\p{Emoji_Presentation}|\uFE0F|\u20E3/u;
 
 // Code block background as a card from the fence column to 1 column past the widest line.
 // Full-width backgrounds would paint under the overlay scrollbar. The fence line gets the copy button.
 // Box text: NBSP before the button keeps the gap, ZWSP gives empty boxes the line height.
-function codeBlockCard(editor: TextEditor, range: Range, fences_visible: boolean): DecorationOptions[] {
+function codeBlockCard(editor: TextEditor, range: Range, fences_visible: boolean): { card: DecorationOptions[]; wide: Range[] } {
   const indent = range.start.character;
   const lines: { length: number; visual: number }[] = [];
+  const wide: Range[] = [];
   for (let line = range.start.line; line <= range.end.line; line++) {
     const text = editor.document.lineAt(line).text;
     const is_fence = line === range.start.line || line === range.end.line;
     const hidden = is_fence && !fences_visible ? FENCE_PATTERN.exec(text)?.[1].length ?? 0 : 0;
-    lines.push({ length: text.length, visual: text.length - hidden });
+    let columns = 0;
+    for (const { segment, index } of graphemes.segment(text)) {
+      const is_wide = isWideChar(segment) || EMOJI_PATTERN.test(segment);
+      if (is_wide) wide.push(new Range(line, index, line, index + segment.length));
+      columns += is_wide ? 2 : 1;
+    }
+    lines.push({ length: text.length, visual: columns - hidden });
   }
   const button = isCopiedFence(editor.document.uri.toString(), range.start.line) ? COPIED_LABEL : COPY_BUTTON;
   const right = Math.max(...lines.map((line, i) => line.visual + (i === 0 ? button.length : 0))) + 1;
-  return lines.map((line, i) => {
+  const card = lines.map((line, i) => {
     const box_start = Math.max(line.visual, indent);
     return {
       range: new Range(range.start.line + i, Math.min(indent, line.length), range.start.line + i, line.length),
@@ -306,6 +319,7 @@ function codeBlockCard(editor: TextEditor, range: Range, fences_visible: boolean
       } },
     };
   });
+  return { card, wide };
 }
 
 function collectRawRanges(selectedRanges: Range[], scopes: ScopeEntry[]): Range[] {

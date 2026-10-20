@@ -630,14 +630,14 @@ export function TableCellDecorationType() {
 }
 
 /**
- * Creates a decoration type for one wide (CJK/fullwidth) char inside a table row.
+ * Creates a decoration type for one wide (CJK/fullwidth/emoji) char in a table row or code block.
  *
  * Fallback CJK fonts rarely advance exactly 2 ASCII cells, so source-padded tables drift.
  * Forcing each wide char box to 2ch keeps pipes on the source column grid.
  *
- * @returns {vscode.TextEditorDecorationType} A decoration type for wide table chars
+ * @returns {vscode.TextEditorDecorationType} A decoration type for wide chars
  */
-export function TableWideCharDecorationType() {
+export function WideCharDecorationType() {
   return window.createTextEditorDecorationType({
     textDecoration: 'none; display: inline-block; width: 2ch; text-align: center; overflow: hidden; vertical-align: top;',
   });

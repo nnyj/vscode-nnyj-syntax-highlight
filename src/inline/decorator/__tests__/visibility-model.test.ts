@@ -387,4 +387,13 @@ describe('code block card', () => {
       ['0 0 0 0ch', '7ch'],
     ]);
   });
+
+  it('counts emoji as 2 columns and pins them to 2ch', () => {
+    const text = '```\n✅ a\n```\nafter';
+    const decs: DecorationRange[] = [{ startPos: 0, endPos: text.lastIndexOf('```') + 3, type: 'codeBlock' } as any];
+    const editor = makeEditorWithSelection(text, 3, 0, 3, 0);
+    const result = filterDecorationsForEditor(editor as any, decs, [], text, (s, e, t) => simpleRangeFactory(s, e, t));
+    expect((result.get('codeBlock') as any[]).map(item => item.renderOptions.after.width)).toEqual(['5ch', '1ch', '5ch']);
+    expect((result.get('wideChar') as any[]).map(range => [range.start.line, range.start.character, range.end.character])).toEqual([[1, 0, 1]]);
+  });
 });

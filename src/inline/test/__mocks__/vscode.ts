@@ -2,10 +2,15 @@
 import { vi } from 'vitest';
 
 class MockRange {
-  constructor(
-    public start: { line: number; character: number },
-    public end: { line: number; character: number },
-  ) {}
+  public start: { line: number; character: number };
+  public end: { line: number; character: number };
+
+  // Matches both vscode.Range overloads: (start, end) positions or 4 numbers.
+  constructor(start: any, end: any, endLine?: number, endCharacter?: number) {
+    const numeric = typeof start === 'number';
+    this.start = numeric ? { line: start, character: end } : start;
+    this.end = numeric ? { line: endLine!, character: endCharacter! } : end;
+  }
 
   contains(position: { line: number; character: number }): boolean {
     return (
