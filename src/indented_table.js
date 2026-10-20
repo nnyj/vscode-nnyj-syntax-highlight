@@ -10,7 +10,8 @@ const numeric_heads = new WeakMap();
 // Cell backgrounds from red (level 0) to green (level 4).
 const level_colors = ['rgba(239,68,68,0.5)', 'rgba(249,115,22,0.5)', 'rgba(234,179,8,0.5)', 'rgba(132,204,22,0.5)', 'rgba(34,197,94,0.5)'];
 const circle_levels = { '🔴': 0, '🟡': 2, '🟢': 4 };
-const RE_NUMBER = /^[-+]?\d[\d,]*(\.\d+)?\s*[%a-zA-Z]*$/;
+// Leading number, trailing text like ` ms` or ` (1.2x)` is ignored.
+const RE_NUMBER = /^[-+]?\d[\d,]*(?:\.\d+)?/;
 const RE_PLACEHOLDER = /^(-+|–|—)$/;
 
 const BORDER = {
@@ -80,13 +81,14 @@ function cell_levels(doc, start, sepNum, end, levels, heads) {
     const plain = column.filter(cell => circle_levels[[...cell.text][0]] === undefined);
     const push = (cell, level) => levels[level].push(new vscode.Range(cell.line, cell.start, cell.line, cell.end));
     column.filter(cell => !plain.includes(cell)).forEach(cell => push(cell, circle_levels[[...cell.text][0]]));
-    if (!plain.length || !plain.every(cell => RE_NUMBER.test(cell.text))) return;
+    const numeric = plain.filter(cell => RE_NUMBER.test(cell.text));
+    if (!numeric.length) return;
     heads.push(new vscode.Range(start, head.start, start, head.end));
-    const values = plain.map(cell => parseFloat(cell.text.replace(/,/g, '')));
+    const values = numeric.map(cell => parseFloat(RE_NUMBER.exec(cell.text)[0].replace(/,/g, '')));
     const min = Math.min(...values);
     const max = Math.max(...values);
     if (max === min) return;
-    plain.forEach((cell, k) => {
+    numeric.forEach((cell, k) => {
       const level = Math.round((values[k] - min) / (max - min) * 4);
       push(cell, head.text.includes('↓') ? 4 - level : level);
     });

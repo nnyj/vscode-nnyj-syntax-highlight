@@ -144,6 +144,13 @@ describe('table cell levels', () => {
     expect(tables.styled('backgroundColor')).toEqual([[red, ' 10 '], [green, ' 30 ']]);
   });
 
+  it('takes the leading number and skips cells not starting with one', () => {
+    const tables = load_tables('| Cost | Speed |\n| --- | --- |\n| 1 | GPT-4 |\n| [9](#sum) | 6 (1.2x) |\n| 3 | 2 |');
+    expect(tables.styled('backgroundColor')).toEqual([
+      [red, ' 1 '], [red, ' 2 '], [green, ' 3 '], [green, ' 6 (1.2x) '],
+    ]);
+  });
+
   it('offers a scale flip on numeric headers only', () => {
     const tables = load_tables('| Score | Name |\n| ----- | ---- |\n| 10    | a    |\n| 30    | b    |');
     expect(tables.hover(0, 3).contents.value).toMatch(/^Green = higher value\. \[Flip ↕\]\(command:nnyjTables\.flipScale\?/);
