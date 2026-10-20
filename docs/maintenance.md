@@ -38,7 +38,7 @@
 - `src/inline/decorator/editor_insets.ts` creates insets through `nnyj.nnyj-inset-helper` (`inset_helper/`), the only package declaring `enabledApiProposals`.
 - Helper missing, or `argv.json` lacking `"enable-proposed-api": ["nnyj.nnyj-inset-helper"]`: renderers fall back to decorations.
 - Mermaid decorations use one SVG slice per code block line, a single tall image vanishes once its first line scrolls off.
-- A wheel gesture stays routed to the inset iframe after it scrolls away from the pointer. Insets forward wheel events, which stalls. The notes repo script `scripts/dev/vscode/vscode_inset_scroll_patch.js` patches VS Code so insets ignore the mouse.
+- A wheel gesture stays routed to the inset iframe after it scrolls away from the pointer. Insets forward wheel events, which stalls.
 
 ## Mermaid
 

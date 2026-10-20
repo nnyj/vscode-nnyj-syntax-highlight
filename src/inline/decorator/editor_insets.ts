@@ -18,8 +18,7 @@ type InsetHelperApi = {
  * Keyed webview insets for one editor at a time, created through the inset helper extension.
  * Unchanged keys keep their inset, so cursor moves don't flicker.
  * Wheel over an inset is forwarded to the editor as a fallback. It stalls once the inset scrolls away from
- * the pointer, since VS Code keeps routing the gesture to the inset iframe. The patch
- * scripts/dev/vscode/vscode_inset_scroll_patch.js in the user's notes repo lets the wheel pass through instead.
+ * the pointer, since VS Code keeps routing the gesture to the inset iframe.
  */
 export class EditorInsets {
   private failed = false;
