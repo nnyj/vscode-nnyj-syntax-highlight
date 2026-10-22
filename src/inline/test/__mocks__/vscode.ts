@@ -254,6 +254,7 @@ export const workspace = {
   onDidChangeConfiguration: () => ({ dispose: () => {} }),
   createFileSystemWatcher: () => ({ onDidChange: () => ({ dispose: () => {} }), dispose: () => {} }),
   onDidRenameFiles: () => ({ dispose: () => {} }),
+  onDidCloseTextDocument: () => ({ dispose: () => {} }),
   applyEdit: vi.fn().mockResolvedValue(true),
   openTextDocument: vi.fn(async (uri: ReturnType<typeof Uri.file>) => new MockTextDocument(uri, "markdown", 1, "")),
   asRelativePath: vi.fn((uri: { toString?: () => string } | string) => {

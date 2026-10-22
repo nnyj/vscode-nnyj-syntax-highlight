@@ -26,7 +26,7 @@ describe('registerEventHandlers', () => {
 
     const disposables = registerEventHandlers(decorator as any, linkClickHandler as any);
 
-    expect(disposables).toHaveLength(6);
+    expect(disposables).toHaveLength(7);
   });
 
   it('routes editor and workspace events to the decorator', () => {
@@ -170,5 +170,43 @@ describe('registerEventHandlers', () => {
     config_listener!({ affectsConfiguration: key => key === `markdownInlineEditor.${section}` });
     expect(decorator.clearCache).toHaveBeenCalledOnce();
     expect(decorator.updateDecorationsForSelection).toHaveBeenCalledOnce();
+  });
+
+  it('redraws a visible editor edited while unfocused, then restores the active editor', () => {
+    let change_listener: (event: { document: vscode.TextDocument }) => void;
+    vscode.workspace.onDidChangeTextDocument = vi.fn(listener => {
+      change_listener = listener;
+      return { dispose: vi.fn() };
+    }) as any;
+    const make_editor = (name: string) => new (vscode.TextEditor as any)(
+      new (vscode.TextDocument as any)(vscode.Uri.file(name), 'markdown', 2, '# Title'), []);
+    const background_editor = make_editor('/background.md');
+    const active_editor = make_editor('/active.md');
+    (vscode.window as any).visibleTextEditors = [background_editor, active_editor];
+    const decorator = { setActiveEditor: vi.fn(), updateDecorationsFromChange: vi.fn() };
+    registerEventHandlers(decorator as any, { setEnabled: vi.fn() } as any);
+
+    (vscode.window as any).activeTextEditor = active_editor;
+    change_listener!({ document: background_editor.document });
+    expect(decorator.setActiveEditor.mock.calls).toEqual([[background_editor], [active_editor]]);
+
+    decorator.setActiveEditor.mockClear();
+    (vscode.window as any).activeTextEditor = undefined;
+    change_listener!({ document: background_editor.document });
+    expect(decorator.setActiveEditor.mock.calls).toEqual([[background_editor]]);
+    expect(decorator.updateDecorationsFromChange).not.toHaveBeenCalled();
+    (vscode.window as any).visibleTextEditors = [];
+  });
+
+  it('drops the cached parse when a document closes', () => {
+    let close_listener: (document: vscode.TextDocument) => void;
+    vscode.workspace.onDidCloseTextDocument = vi.fn(listener => {
+      close_listener = listener;
+      return { dispose: vi.fn() };
+    }) as any;
+    const decorator = { clearCache: vi.fn() };
+    registerEventHandlers(decorator as any, { setEnabled: vi.fn() } as any);
+    close_listener!(new (vscode.TextDocument as any)(vscode.Uri.file('/closed.md'), 'markdown', 1, ''));
+    expect(decorator.clearCache).toHaveBeenCalledWith('file:///closed.md');
   });
 });
