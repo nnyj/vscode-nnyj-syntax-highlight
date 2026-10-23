@@ -135,6 +135,24 @@ describe('Mermaid webview lifecycle', () => {
     expect(vscode_mocks.execute_command).toHaveBeenCalledWith('mdInline.mermaidRenderer.focus');
   });
 
+  it('focuses the view on the first wait only, and switches back once it resolves', async () => {
+    const manager = new MermaidWebviewManager();
+    manager.initialize(create_context());
+    await flush_promises();
+    expect(vscode_mocks.execute_command).not.toHaveBeenCalled();
+
+    manager.waitForWebview().catch(() => undefined);
+    manager.waitForWebview().catch(() => undefined);
+    expect(vscode_mocks.execute_command).toHaveBeenCalledTimes(1);
+    expect(vscode_mocks.execute_command).toHaveBeenCalledWith('mdInline.mermaidRenderer.focus');
+
+    manager.setWebviewView({} as vscode.WebviewView);
+    manager.onViewResolved();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(vscode_mocks.execute_command).toHaveBeenLastCalledWith('workbench.view.explorer');
+    manager.dispose();
+  });
+
   it('stops a hover render waiting for readiness when its token is cancelled', async () => {
     initMermaidRenderer(create_context());
     await flush_promises();

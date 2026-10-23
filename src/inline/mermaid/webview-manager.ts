@@ -19,6 +19,8 @@ export class MermaidWebviewManager {
   private renderRequestCounter = 0;
   private messageHandlerDisposable: vscode.Disposable | undefined;
   private switch_back_timeout_id: NodeJS.Timeout | undefined;
+  private view_requested = false;
+  private switch_back_pending = false;
   private _extensionContext: vscode.ExtensionContext | undefined;
   private disposed = false;
 
@@ -44,46 +46,35 @@ export class MermaidWebviewManager {
         { webviewOptions: { retainContextWhenHidden: true } }
       )
     );
-
-    // Open the mermaid view briefly to initialize it, then switch back
-    // Focus the view so VS Code calls resolveWebviewView() (hidden views are not resolved by opening the container only)
-    void this.ensureWebviewThenSwitchBack();
   }
 
   /**
-   * Focus the Mermaid view to trigger webview creation, wait for it (or 5s), then switch back to Explorer.
+   * Focus the Mermaid view once, on the first render, so VS Code calls resolveWebviewView().
+   * Hidden views are not resolved by opening the container only.
    */
-  private ensureWebviewThenSwitchBack(): void {
-    const WEBVIEW_READY_TIMEOUT_MS = 5000;
+  private request_view(): void {
+    if (this.view_requested) {
+      return;
+    }
+    this.view_requested = true;
+    this.switch_back_pending = true;
 
-    vscode.commands
-      .executeCommand('mdInline.mermaidRenderer.focus')
-      .then(
-        async () => {
-          if (this.disposed) {
-            return;
-          }
+    vscode.commands.executeCommand('mdInline.mermaidRenderer.focus').then(undefined, (err: unknown) => {
+      if (!this.disposed && err !== undefined) {
+        logWarn('Mermaid: Failed to focus view', err);
+      }
+    });
+  }
 
-          try {
-            await this.waitForWebview(undefined, WEBVIEW_READY_TIMEOUT_MS);
-          } catch (error) {
-            if (this.disposed) {
-              return;
-            }
-            logWarn('Mermaid: Webview not ready after opening view', error);
-          }
-
-          if (this.disposed) {
-            return;
-          }
-          this.schedule_switch_back();
-        },
-        (err: unknown) => {
-          if (!this.disposed && err !== undefined) {
-            logWarn('Mermaid: Failed to focus view', err);
-          }
-        }
-      );
+  /**
+   * Switch back right after the html is set, retainContextWhenHidden keeps the webview loading while hidden.
+   */
+  onViewResolved(): void {
+    if (!this.switch_back_pending) {
+      return;
+    }
+    this.switch_back_pending = false;
+    this.schedule_switch_back();
   }
 
   private schedule_switch_back(): void {
@@ -409,10 +400,7 @@ export class MermaidWebviewManager {
   /**
    * Wait for webview to be loaded
    */
-  waitForWebview(
-    cancellationToken?: vscode.CancellationToken,
-    timeout_ms?: number
-  ): Promise<void> {
+  waitForWebview(cancellationToken?: vscode.CancellationToken): Promise<void> {
     if (this.disposed) {
       return Promise.reject(new Error('Mermaid renderer disposed'));
     }
@@ -422,15 +410,14 @@ export class MermaidWebviewManager {
     if (cancellationToken?.isCancellationRequested) {
       return Promise.reject(new vscode.CancellationError());
     }
+    if (!this.webviewView) {
+      this.request_view();
+    }
 
     return new Promise<void>((resolve, reject) => {
       let cancellation_listener: vscode.Disposable | undefined;
-      let timeout_id: NodeJS.Timeout | undefined;
       const cleanup = () => {
         cancellation_listener?.dispose();
-        if (timeout_id) {
-          clearTimeout(timeout_id);
-        }
         this.webview_waiters.delete(waiter);
       };
       const waiter = {
@@ -451,11 +438,6 @@ export class MermaidWebviewManager {
       if (cancellationToken?.isCancellationRequested) {
         waiter.reject(new vscode.CancellationError());
         return;
-      }
-      if (timeout_ms !== undefined) {
-        timeout_id = setTimeout(() => {
-          waiter.reject(new Error('Mermaid webview readiness timed out'));
-        }, timeout_ms);
       }
     });
   }
@@ -530,5 +512,6 @@ class MermaidWebviewViewProvider implements vscode.WebviewViewProvider {
     }, null, []);
     this.manager.setMessageHandlerDisposable(messageHandlerDisposable);
     webviewView.webview.html = this.manager.getWebviewContent(webviewView.webview, extensionContext.extensionUri);
+    this.manager.onViewResolved();
   }
 }
