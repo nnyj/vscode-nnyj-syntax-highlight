@@ -3,8 +3,23 @@ import { commands, Event, extensions, TextEditor, Webview, WebviewOptions, works
 import { getEditorLineHeight } from '../mermaid/mermaid-renderer';
 import { logWarn } from '../logging';
 
-/** Inset below 0-based `line`, `lines` tall, body shifted right by `indent` columns. */
-export type InsetSpec = { line: number; lines: number; indent: number; body: string };
+/**
+ * Inset below 0-based `line`, `lines` tall, body shifted right by `indent` columns.
+ * onHeight gets the body height in px when the zone does not follow it, onClick the `data-cell` of a double-clicked element,
+ * onLink the `data-href` of a clicked link.
+ * A `data-visible-right` element in the body is capped to the editor's visible area inside the webview, since the
+ * zone spans the editor's scroll width. onVisibleRight gets the new right edge in px when it moves over 4px.
+ */
+export type InsetSpec = {
+  line: number;
+  lines: number;
+  indent: number;
+  body: string;
+  onHeight?: (height: number) => void;
+  onClick?: (cell: string) => void;
+  onLink?: (href: string) => void;
+  onVisibleRight?: (right: number) => void;
+};
 
 /** Companion extension in inset_helper/, wraps the proposed editorInsets API that the Marketplace rejects. */
 const INSET_HELPER_ID = 'nnyj.nnyj-inset-helper';
@@ -71,7 +86,13 @@ export class EditorInsets {
     }
     inset.webview.html = buildInsetHtml(spec);
     let scroll_remainder = 0;
-    inset.webview.onDidReceiveMessage((message: { delta: number }) => {
+    type InsetMessage = { delta?: number; height?: number; cell?: string; link?: string; visibleRight?: number };
+    inset.webview.onDidReceiveMessage((message: InsetMessage) => {
+      if (message.height !== undefined) return spec.onHeight?.(message.height);
+      if (message.link !== undefined) return spec.onLink?.(message.link);
+      if (message.visibleRight !== undefined) return spec.onVisibleRight?.(message.visibleRight);
+      if (message.cell !== undefined) return spec.onClick?.(message.cell);
+      if (message.delta === undefined) return;
       const lineHeight = getEditorLineHeight();
       scroll_remainder += message.delta;
       const lines = Math.trunc(scroll_remainder / lineHeight);
@@ -125,5 +146,61 @@ function buildInsetHtml(spec: InsetSpec): string {
         event.preventDefault();
         vscode.postMessage({ delta: event.deltaY });
       }, { passive: false });
+      const sized = document.querySelector('[data-visible-right]');
+      // Patched workbench (inset resize) sizes the zone from zoneHeight at once.
+      // Unpatched, the zone keeps its height, so the extension gets the height after 300ms and recreates the inset.
+      let height_timer;
+      new ResizeObserver(() => {
+        const height = document.body.scrollHeight;
+        vscode.postMessage({ zoneHeight: height });
+        clearTimeout(height_timer);
+        height_timer = setTimeout(() => {
+          if (Math.abs(innerHeight - document.body.scrollHeight) > 1) vscode.postMessage({ height: document.body.scrollHeight });
+        }, 300);
+      }).observe(document.body);
+      // Click opens a link, double click jumps to the cell source
+      const handle_click = (target, detail) => {
+        const link = target?.closest('[data-href]');
+        if (link && detail === 1) return vscode.postMessage({ link: link.dataset.href });
+        const cell = target?.closest('[data-cell]');
+        if (cell && detail === 2) vscode.postMessage({ cell: cell.dataset.cell });
+      };
+      addEventListener('click', event => handle_click(event.target, event.detail));
+      // Patched workbench relays presses as zoneMouse, since the zone never takes the mouse itself
+      if (sized) vscode.postMessage({ zoneMouse: true });
+      let anchor;
+      addEventListener('message', event => {
+        const mouse = event.data?.zoneMouse;
+        if (!mouse) return;
+        const selection = getSelection();
+        if (mouse.type === 'clear') return selection.removeAllRanges();
+        const caret = document.caretRangeFromPoint(mouse.x, mouse.y);
+        if (mouse.type === 'down') {
+          anchor = caret;
+          if (!caret) return selection.removeAllRanges();
+          selection.collapse(caret.startContainer, caret.startOffset);
+        } else if (mouse.type === 'move' && anchor && caret) {
+          selection.setBaseAndExtent(anchor.startContainer, anchor.startOffset, caret.startContainer, caret.startOffset);
+        } else if (mouse.type === 'up') {
+          anchor = undefined;
+          const text = selection.toString();
+          vscode.postMessage({ zoneSelection: text });
+          if (!text) handle_click(document.elementFromPoint(mouse.x, mouse.y), mouse.detail);
+        }
+      });
+      if (sized) {
+        // Ancestor clipping crosses iframes, so the intersection is the part of the zone the editor shows
+        const probe = document.body.appendChild(document.createElement('div'));
+        probe.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 1px; pointer-events: none;';
+        new IntersectionObserver(([entry]) => {
+          const right = Math.round(entry.intersectionRect.right);
+          if (entry.intersectionRect.width === 0) return;
+          sized.style.maxWidth = (right - sized.getBoundingClientRect().left - 16) + "px";
+          if (Math.abs(right - Number(sized.dataset.visibleRight)) > 4) {
+            sized.dataset.visibleRight = right;
+            vscode.postMessage({ visibleRight: right });
+          }
+        }, { threshold: Array.from({ length: 101 }, (_, i) => i / 100) }).observe(probe);
+      }
     </script></body></html>`;
 }

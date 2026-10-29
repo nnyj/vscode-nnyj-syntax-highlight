@@ -1,5 +1,5 @@
 import { DecorationOptions, Range, TextEditor, TextDocument, TextDocumentChangeEvent, window, TextEditorSelectionChangeKind, Memento } from 'vscode';
-import { DecorationRange, DecorationType, ImageBlock, MermaidBlock, MathRegion, ScopeRange } from './parser';
+import { DecorationRange, DecorationType, ImageBlock, MermaidBlock, MathRegion, ScopeRange, TableBlock } from './parser';
 import { config } from './config';
 import { is_diff_editor } from './diff-context';
 import { MarkdownParseCache } from './markdown-parse-cache';
@@ -11,6 +11,7 @@ import {
 import { FileDecorationStateStore } from './decorator/file-decoration-state';
 import { MermaidUpdateCoordinator } from './decorator/mermaid-update-coordinator';
 import { ImageUpdateCoordinator } from './decorator/image_update_coordinator';
+import { TableUpdateCoordinator } from './decorator/table_update_coordinator';
 import { DecorationTypeRegistry } from './decorator/decoration-type-registry';
 import { filterDecorationsForEditor, ScopeEntry } from './decorator/visibility-model';
 import { handleCheckboxClick } from './decorator/checkbox-toggle';
@@ -73,6 +74,7 @@ export class Decorator {
     new MermaidDiagramDecorations(),
     () => this.updateDecorationsForSelection()
   );
+  readonly tableCoordinator: TableUpdateCoordinator;
   private mathDecorations = new MathDecorations();
   private mermaidHoverIndicatorDecorationType = MermaidHoverIndicatorDecorationType();
   private readonly fileDecorationState: FileDecorationStateStore;
@@ -80,6 +82,7 @@ export class Decorator {
 
   constructor(parseCache: MarkdownParseCache, workspaceState?: Memento) {
     this.parseCache = parseCache;
+    this.tableCoordinator = new TableUpdateCoordinator(parseCache, () => this.updateDecorationsForSelection());
     this.fileDecorationState = new FileDecorationStateStore(workspaceState);
     this.updateScheduler = new DecoratorUpdateScheduler(PERFORMANCE_CONSTANTS.DEBOUNCE_TIMEOUT_MS);
     this.decorationTypes = new DecorationTypeRegistry({
@@ -271,6 +274,7 @@ export class Decorator {
     this.activeEditor.setDecorations(this.decorationTypes.getGhostFaintDecorationType(), []);
     this.mermaidCoordinator.clear(this.activeEditor);
     this.imageCoordinator.clear(this.activeEditor);
+    this.tableCoordinator.clear(this.activeEditor);
     this.mathDecorations.clear(this.activeEditor);
     this.activeEditor.setDecorations(this.mermaidHoverIndicatorDecorationType, []);
   }
@@ -307,7 +311,7 @@ export class Decorator {
     // Parse document (uses cache if version unchanged)
     const cycleStart = Date.now();
     const version = document.version;
-    const { decorations, scopes, text, mermaidBlocks, imageBlocks, mathRegions } = this.parseDocument(document);
+    const { decorations, scopes, text, mermaidBlocks, imageBlocks, tableBlocks, mathRegions } = this.parseDocument(document);
     const parseDurationMs = Date.now() - cycleStart;
 
     // Re-validate version before applying (race condition protection)
@@ -322,16 +326,19 @@ export class Decorator {
 
     // Filter decorations based on selections (pass original text for offset adjustment)
     const filterStart = Date.now();
-    // Rendered images replace their whole syntax, so drop alt text and marker decorations inside them
+    // Rendered images and tables replace their whole syntax, so drop the decorations inside them
     const renderedImages = this.imageCoordinator.getRenderedBlocks(this.activeEditor, imageBlocks, text);
-    const visibleDecorations = renderedImages.length === 0 ? decorations : decorations.filter(decoration =>
-      !renderedImages.some(block => decoration.startPos >= block.startPos && decoration.endPos <= block.endPos));
+    const renderedTables = this.tableCoordinator.getRenderedTables(this.activeEditor, tableBlocks);
+    const rendered = [...renderedImages, ...renderedTables];
+    const visibleDecorations = rendered.length === 0 ? decorations : decorations.filter(decoration =>
+      !rendered.some(block => decoration.startPos >= block.startPos && decoration.endPos <= block.endPos));
     const filtered = this.filterDecorations(visibleDecorations, scopes, text);
     const filterDurationMs = Date.now() - filterStart;
 
     // Apply decorations
     this.applyDecorations(filtered);
     this.imageCoordinator.update(this.activeEditor, imageBlocks, text);
+    this.tableCoordinator.update(this.activeEditor, renderedTables, tableBlocks);
     if (config.math.enabled() && mathRegions.length > 0) {
       this.applyMathDecorations(mathRegions.filter(region => !scopes.some(scope =>
         scope.kind === 'table' && scope.startPos <= region.startPos && scope.endPos >= region.endPos)), text);
@@ -407,6 +414,7 @@ export class Decorator {
     text: string;
     mermaidBlocks: MermaidBlock[];
     imageBlocks: ImageBlock[];
+    tableBlocks: TableBlock[];
     mathRegions: MathRegion[];
   } {
     const entry = this.parseCache.get(document);
@@ -417,6 +425,7 @@ export class Decorator {
       text: entry.text,
       mermaidBlocks: entry.mermaidBlocks,
       imageBlocks: entry.imageBlocks,
+      tableBlocks: entry.tableBlocks,
       mathRegions: entry.mathRegions,
     };
   }
@@ -631,6 +640,7 @@ export class Decorator {
     this.updateScheduler.dispose();
     this.mermaidCoordinator.dispose();
     this.imageCoordinator.dispose();
+    this.tableCoordinator.dispose();
     this.mathDecorations.dispose();
     this.decorationTypes.dispose();
     this.mermaidHoverIndicatorDecorationType.dispose();

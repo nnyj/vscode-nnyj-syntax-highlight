@@ -11,6 +11,24 @@ describe('MarkdownParser - Tables', () => {
     return decs.filter((d) => d.type === type);
   }
 
+  describe('table blocks', () => {
+    it('gives lines, alignment, cell html and cell starts', () => {
+      const md = 'intro\n\n  | A | **B** |\n  |---|--:|\n  | `x<y>` | a<br>b <i>c</i> |';
+      const [block] = parser.extractDecorationsWithScopes(md).tableBlocks;
+      expect(block).toMatchObject({ startLine: 2, endLine: 4, align: [null, 'right'] });
+      expect(block.rows.map(row => row.map(cell => cell.html))).toEqual([
+        ['A', '<strong>B</strong>'],
+        ['<code>x&lt;y&gt;</code>', 'a<br>b &lt;i&gt;c&lt;/i&gt;'],
+      ]);
+      expect(block.rows[1].map(cell => [cell.line, cell.character])).toEqual([[4, 4], [4, 13]]);
+      expect(block.rows[1].map(cell => cell.text)).toEqual(['`x<y>`', 'a<br>b <i>c</i>']);
+    });
+
+    it('skips tables in blockquotes', () => {
+      expect(parser.extractDecorationsWithScopes('> | A |\n> |---|\n> | 1 |').tableBlocks).toEqual([]);
+    });
+  });
+
   describe('basic table rendering', () => {
     it('keeps currency headers separate and still recognizes math within a cell', () => {
       const md = '| $/in | $/out | Formula |\n| --- | --- | --- |\n| $5 | $10 | $x + y$ |';

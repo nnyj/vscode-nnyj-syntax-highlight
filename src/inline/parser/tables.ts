@@ -2,6 +2,7 @@ import type {
   Delete,
   Emphasis,
   InlineCode,
+  Link,
   Node,
   Strong,
   Table,
@@ -28,6 +29,44 @@ export function extractCellPlainText(cell: TableCell): string {
         const asParent = node as { children?: Node[] };
         return asParent.children ? asParent.children.map(walk).join('') : '';
       }
+    }
+  };
+
+  return cell.children.map(walk).join('');
+}
+
+const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+
+export function escapeHtml(text: string): string {
+  return text.replace(/[&<>"]/g, char => HTML_ESCAPES[char]);
+}
+
+/** Cell content as inline html for the wrapped table inset. Raw html is escaped except `<br>`. */
+export function cellToHtml(cell: TableCell): string {
+  const walk = (node: Node): string => {
+    const value = (node as { value?: string }).value ?? '';
+    const children = () => ((node as { children?: Node[] }).children ?? []).map(walk).join('');
+    switch (node.type) {
+      case 'inlineCode':
+        return `<code>${escapeHtml(value)}</code>`;
+      case 'strong':
+        return `<strong>${children()}</strong>`;
+      case 'emphasis':
+        return `<em>${children()}</em>`;
+      case 'delete':
+        return `<del>${children()}</del>`;
+      case 'link':
+        return `<a data-href="${escapeHtml((node as Link).url)}">${children()}</a>`;
+      case 'linkReference':
+        return `<a>${children()}</a>`;
+      case 'image':
+        return escapeHtml((node as { alt?: string }).alt ?? '');
+      case 'break':
+        return '<br>';
+      case 'html':
+        return /^<br\s*\/?>$/i.test(value) ? '<br>' : escapeHtml(value);
+      default:
+        return value ? escapeHtml(value) : children();
     }
   };
 

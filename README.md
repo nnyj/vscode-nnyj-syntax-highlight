@@ -21,6 +21,7 @@ Custom Markdown and Terraform syntax colors with inline Markdown rendering in th
 - Images alone on their line render inline, local files reload on change.
 - With the [inset helper](inset_helper/README.md) installed, images and Mermaid diagrams render full size in a box below their lines, pushing text down.
 - Without the helper, images are drawn over their line and the blank lines below it, Mermaid diagrams are fitted into their code block lines.
+- With the helper, tables outside the cursor render as wrapped HTML below their header line, with the rows folded. Moving the cursor into a table or double-clicking a cell shows the source.
 - Fenced code blocks render as a card from the fence column to the widest line.
 - Clicking `⎘` after a code block's opening fence copies its content without the fence indent.
 - Markdown markers appear while editing their content.
@@ -30,13 +31,13 @@ Custom Markdown and Terraform syntax colors with inline Markdown rendering in th
 
 ### Markdown injections
 
-| Grammar | Highlights |
-|---------|-----------|
-| `markdown.arrow` | Arrow operators: `->`, `<-`, `-->`, `<--` |
-| `markdown.bracket` | Parenthesized expressions `(...)`, supports bold/italic/highlight inside |
-| `markdown.colon` | Colon-terminated labels and key-value patterns |
-| `markdown.comment` | Lines starting with `;` or `//` |
-| `markdown.highlight` | `==highlighted==` and `__underlined__` text |
+| Grammar              | Highlights                                                               |
+| -------------------- | ------------------------------------------------------------------------ |
+| `markdown.arrow`     | Arrow operators: `->`, `<-`, `-->`, `<--`                                |
+| `markdown.bracket`   | Parenthesized expressions `(...)`, supports bold/italic/highlight inside |
+| `markdown.colon`     | Colon-terminated labels and key-value patterns                           |
+| `markdown.comment`   | Lines starting with `;` or `//`                                          |
+| `markdown.highlight` | `==highlighted==` and `__underlined__` text                              |
 
 All markdown injections exclude `meta.embedded` and `markup.fenced_code` scopes to avoid interfering with code blocks.
 

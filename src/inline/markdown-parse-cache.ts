@@ -1,5 +1,5 @@
 import type * as vscode from 'vscode';
-import type { DecorationRange, ScopeRange, MermaidBlock, ImageBlock, MathRegion, MarkdownParser } from './parser';
+import type { DecorationRange, ScopeRange, MermaidBlock, ImageBlock, TableBlock, MathRegion, MarkdownParser } from './parser';
 import { logDebug, logPerformanceMetric } from './logging';
 
 export type ParseEntry = {
@@ -9,6 +9,7 @@ export type ParseEntry = {
   scopes: ScopeRange[];
   mermaidBlocks: MermaidBlock[];
   imageBlocks: ImageBlock[];
+  tableBlocks: TableBlock[];
   mathRegions: MathRegion[];
 };
 
@@ -33,7 +34,7 @@ export class MarkdownParseCache {
 
     const text = document.getText();
     const parseStart = Date.now();
-    const { decorations, scopes, mermaidBlocks, imageBlocks, mathRegions } = this.parser.extractDecorationsWithScopes(text);
+    const { decorations, scopes, mermaidBlocks, imageBlocks, tableBlocks, mathRegions } = this.parser.extractDecorationsWithScopes(text);
     const parseDurationMs = Date.now() - parseStart;
     const entry: CacheEntry = {
       version: document.version,
@@ -42,6 +43,7 @@ export class MarkdownParseCache {
       scopes,
       mermaidBlocks,
       imageBlocks,
+      tableBlocks,
       mathRegions,
       lastAccessed: ++this.accessCounter,
     };

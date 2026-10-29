@@ -38,6 +38,24 @@ export interface ImageBlock {
   numLines: number;
 }
 
+/** Table cell as trimmed source text and inline html, line and character of its first content char for click-to-edit */
+export interface TableCellBlock {
+  text: string;
+  html: string;
+  line: number;
+  character: number;
+}
+
+/** GFM table outside blockquotes, 0-based startLine = header row, endLine = last row, rows[0] = header */
+export interface TableBlock {
+  startPos: number;
+  endPos: number;
+  startLine: number;
+  endLine: number;
+  align: Array<'left' | 'right' | 'center' | null>;
+  rows: TableCellBlock[][];
+}
+
 export interface MathRegion {
   startPos: number;
   endPos: number;
@@ -51,6 +69,7 @@ export interface ParseResult {
   scopes: ScopeRange[];
   mermaidBlocks: MermaidBlock[];
   imageBlocks: ImageBlock[];
+  tableBlocks: TableBlock[];
   mathRegions: MathRegion[];
 }
 

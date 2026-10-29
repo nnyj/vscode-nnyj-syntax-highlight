@@ -1,6 +1,6 @@
 # NNYJ Inset Helper
 
-Companion for [NNYJ Syntax Highlight](../README.md). With it, standalone images and Mermaid diagrams render at full size in a box below their Markdown lines, pushing text down. Without it, the main extension draws them over the lines.
+Companion for [NNYJ Syntax Highlight](../README.md). With it, standalone images and Mermaid diagrams render at full size in a box below their Markdown lines, pushing text down, and tables render with wrapped cells. Without it, the main extension draws them over the lines.
 
 It only wraps the proposed `editorInsets` API, which the Marketplace rejects, so it ships as a vsix.
 

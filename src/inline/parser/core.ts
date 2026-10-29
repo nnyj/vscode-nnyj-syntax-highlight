@@ -31,6 +31,8 @@ import {
 } from "./mentions";
 import {
   cellHasMixedFormatting as cellHasMixedFormattingHelper,
+  cellToHtml as cellToHtmlHelper,
+  escapeHtml as escapeHtmlHelper,
   computeColumnWidths as computeColumnWidthsHelper,
   detectCellStyle as detectCellStyleHelper,
   extractCellPlainText as extractCellPlainTextHelper,
@@ -71,6 +73,8 @@ import {
   MermaidBlock,
   ParseResult,
   ScopeRange,
+  TableBlock,
+  TableCellBlock,
 } from "./types";
 
 /**
@@ -159,6 +163,7 @@ export class MarkdownParser {
         scopes: [],
         mermaidBlocks: [],
         imageBlocks: [],
+        tableBlocks: [],
         mathRegions: [],
       };
     }
@@ -171,6 +176,7 @@ export class MarkdownParser {
     const scopes: ScopeRange[] = [];
     const mermaidBlocks: MermaidBlock[] = [];
     const imageBlocks: ImageBlock[] = [];
+    const tableBlocks: TableBlock[] = [];
 
     // Process frontmatter before remark parsing to avoid conflicts with thematic break detection
     processFrontmatterHelper(normalizedText, decorations, scopes);
@@ -180,7 +186,7 @@ export class MarkdownParser {
       const ast = this.processor.parse(normalizedText) as Root;
 
       // Process AST nodes and extract decorations + scopes
-      this.processAST(ast, normalizedText, decorations, scopes, mermaidBlocks, imageBlocks);
+      this.processAST(ast, normalizedText, decorations, scopes, mermaidBlocks, imageBlocks, tableBlocks);
 
       // Handle edge cases: empty image alt text that remark doesn't parse as Image node
       handleEmptyImageAltHelper(normalizedText, decorations);
@@ -206,6 +212,7 @@ export class MarkdownParser {
       scopes: dedupeScopesHelper(scopes),
       mermaidBlocks,
       imageBlocks,
+      tableBlocks,
       mathRegions: scanMathRegions(normalizedText, decorations.filter(decoration =>
         decoration.type === 'tablePipe' || decoration.type === 'tableSeparatorPipe').map(decoration => decoration.startPos),
         decorations.filter(decoration => decoration.type === 'code' || decoration.type === 'codeBlock')),
@@ -229,6 +236,7 @@ export class MarkdownParser {
     scopes: ScopeRange[],
     mermaidBlocks: MermaidBlock[],
     imageBlocks: ImageBlock[],
+    tableBlocks: TableBlock[],
   ): void {
     // Track processed blockquote positions to avoid duplicates from nested blockquotes
     const processedBlockquotePositions = new Set<number>();
@@ -393,6 +401,7 @@ export class MarkdownParser {
                 decorations,
                 scopes,
                 currentAncestors,
+                tableBlocks,
               );
               break;
           }
@@ -862,6 +871,7 @@ export class MarkdownParser {
     decorations: DecorationRange[],
     scopes: ScopeRange[],
     ancestors: Node[],
+    tableBlocks: TableBlock[],
   ): void {
     if (!hasValidPositionHelper(node)) return;
 
@@ -876,6 +886,8 @@ export class MarkdownParser {
     const colAligns = node.align ?? [];
 
     addScopeHelper(scopes, tableStart, tableEnd, "table");
+    const tableStartLine = countNewlines(text, 0, tableStart);
+    const tableRows: TableCellBlock[][] = [];
 
     for (let rowIdx = 0; rowIdx < node.children.length; rowIdx++) {
       const row = node.children[rowIdx];
@@ -894,6 +906,20 @@ export class MarkdownParser {
       const { positions: pipes, isVirtual } = normalizePipePositionsHelper(
         text, lineStart, trimmedLineEnd, rawPipes,
       );
+
+      const rowLine = tableStartLine + countNewlines(text, tableStart, lineStart);
+      const rowCells: TableCellBlock[] = [];
+      for (let i = 0; i < pipes.length - 1; i++) {
+        const rawCell = text.substring(pipes[i] + 1, pipes[i + 1]);
+        const astCell = row.children[i] as TableCell | undefined;
+        rowCells.push({
+          text: rawCell.trim(),
+          html: astCell ? cellToHtmlHelper(astCell) : escapeHtmlHelper(rawCell.trim()),
+          line: rowLine,
+          character: pipes[i] + 1 + rawCell.length - rawCell.trimStart().length - lineStart,
+        });
+      }
+      tableRows.push(rowCells);
 
       for (const [startPos, endPos, type] of findFixedWidthRangesHelper(text, lineStart, trimmedLineEnd)) {
         decorations.push({ startPos, endPos, type });
@@ -1011,7 +1037,25 @@ export class MarkdownParser {
         }
       }
     }
+
+    // Blockquote markers sit on every row, an inset below the header can't keep them
+    if (!ancestors.some(ancestor => ancestor.type === "blockquote")) {
+      tableBlocks.push({
+        startPos: tableStart,
+        endPos: tableEnd,
+        startLine: tableStartLine,
+        endLine: tableStartLine + countNewlines(text, tableStart, tableEnd),
+        align: colAligns,
+        rows: tableRows,
+      });
+    }
   }
+}
+
+function countNewlines(text: string, start: number, end: number): number {
+  let count = 0;
+  for (let i = text.indexOf("\n", start); i !== -1 && i < end; i = text.indexOf("\n", i + 1)) count++;
+  return count;
 }
 
 /**

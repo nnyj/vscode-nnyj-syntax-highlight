@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { describe, it, expect, vi } from 'vitest';
 import { Range, Position } from './inline/test/__mocks__/vscode';
+import * as table_levels from './inline/parser/table_levels';
 
 vi.useFakeTimers();
 
@@ -47,7 +48,7 @@ function load_tables(text, language = 'markdown') {
   };
   const module = { exports: {} };
   vm.runInNewContext(fs.readFileSync(new URL('./indented_table.js', import.meta.url), 'utf8'), {
-    module, require: () => vscode, setTimeout, clearTimeout,
+    module, require: name => name === 'vscode' ? vscode : table_levels, setTimeout, clearTimeout,
   });
   module.exports.register({ subscriptions: [] });
   return {
