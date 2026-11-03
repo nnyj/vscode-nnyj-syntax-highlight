@@ -11,6 +11,10 @@ export function registerEventHandlers(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       decorator.setActiveEditor(editor);
     }),
+    // Re-renders insets, see EditorInsets.sync
+    vscode.window.onDidChangeTextEditorViewColumn(() => {
+      decorator.updateDecorationsForSelection();
+    }),
     vscode.window.onDidChangeTextEditorSelection((event) => {
       decorator.updateDecorationsForSelection(event.kind);
     }),

@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { commands, Event, extensions, TextEditor, Webview, WebviewOptions, workspace } from 'vscode';
+import { commands, Event, extensions, TextEditor, ViewColumn, Webview, WebviewOptions, workspace } from 'vscode';
 import { getEditorLineHeight } from '../mermaid/mermaid-renderer';
 import { logWarn } from '../logging';
 
@@ -40,6 +40,7 @@ export class EditorInsets {
   private activating = false;
   private insets = new Map<string, WebviewEditorInset>();
   private editor: TextEditor | undefined;
+  private viewColumn: ViewColumn | undefined;
 
   /** onChange re-renders callers: after the helper activates, or once insets fail and decorations take over. */
   constructor(private readonly onChange: () => void) {}
@@ -51,9 +52,11 @@ export class EditorInsets {
 
   sync(editor: TextEditor, wanted: Map<string, InsetSpec>): void {
     if (!this.supported) return;
-    if (editor !== this.editor) {
+    // A moved editor group reparents the inset iframes, which reload blank
+    if (editor !== this.editor || editor.viewColumn !== this.viewColumn) {
       this.dispose();
       this.editor = editor;
+      this.viewColumn = editor.viewColumn;
     }
     for (const [key, inset] of this.insets) {
       if (!wanted.has(key)) {
