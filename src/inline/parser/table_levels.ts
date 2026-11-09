@@ -14,14 +14,14 @@ export function cellLevels(header: string[], rows: string[][]): { levels: Array<
   const levels: Array<Array<number | undefined>> = rows.map(row => row.map(() => undefined));
   const numericColumns: number[] = [];
   header.forEach((head, column) => {
-    const cells = rows.map((row, index) => ({ index, text: row[column] }))
+    const cells = rows.map((row, index) => ({ index, text: row[column] ?? '' }))
       .filter(cell => cell.text && !RE_PLACEHOLDER.test(cell.text));
     const numeric: Array<{ index: number; value: number }> = [];
     for (const cell of cells) {
-      const circle = CIRCLE_LEVELS[[...cell.text][0]];
+      const circle = CIRCLE_LEVELS[[...cell.text][0] ?? ''];
       const number = RE_NUMBER.exec(cell.text);
-      if (circle !== undefined) levels[cell.index][column] = circle;
-      else if (number) numeric.push({ index: cell.index, value: parseFloat(number[1].replace(/,/g, '')) });
+      if (circle !== undefined) levels[cell.index]![column] = circle;
+      else if (number) numeric.push({ index: cell.index, value: parseFloat(number[1]!.replace(/,/g, '')) });
     }
     if (numeric.length === 0) return;
     numericColumns.push(column);
@@ -30,7 +30,7 @@ export function cellLevels(header: string[], rows: string[][]): { levels: Array<
     if (max === min) return;
     for (const cell of numeric) {
       const level = Math.round((cell.value - min) / (max - min) * 4);
-      levels[cell.index][column] = head.includes('↓') ? 4 - level : level;
+      levels[cell.index]![column] = head.includes('↓') ? 4 - level : level;
     }
   });
   return { levels, numericColumns };

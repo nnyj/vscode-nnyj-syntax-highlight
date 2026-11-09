@@ -21,7 +21,7 @@ export function registerEventHandlers(
     vscode.workspace.onDidChangeTextDocument((event) => {
       const activeEditor = vscode.window.activeTextEditor;
       if (event.document === activeEditor?.document) {
-        decorator.updateDecorationsFromChange(event);
+        decorator.updateDecorationsForDocument(event);
         return;
       }
       // Unfocused edits, e.g. by an agent, would leave VS Code shifting the old ranges into wrong text

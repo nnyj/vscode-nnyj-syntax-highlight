@@ -9,7 +9,7 @@
   "repository": {
     "arbitrary-string": {
       "name": "markdown.arrow",
-      "match": "([-]*>|<[-]*)"
+      "match": "(-+>|<-+)"
     }
   }
 }

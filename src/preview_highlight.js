@@ -1,7 +1,7 @@
 // Markdown preview spans mirroring the syntaxes/markdown.*.json injections.
 // Earliest match wins, ties go to the first rule, like TextMate injections.
 const rules = [
-  { name: 'arrow', re: /-*>|<-*/g },
+  { name: 'arrow', re: /-+>|<-+/g },
   { name: 'bracket_open', re: /\(/g },
   { name: 'bracket_close', re: /\)/g },
   { name: 'colon', re: /^[^|[\]:=*]+:(?!\\)(?!\/)/g, line_start: true },

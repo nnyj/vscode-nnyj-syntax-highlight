@@ -11,7 +11,7 @@ describe('registerEventHandlers', () => {
     const decorator = {
       setActiveEditor: vi.fn(),
       updateDecorationsForSelection: vi.fn(),
-      updateDecorationsFromChange: vi.fn(),
+      updateDecorationsForDocument: vi.fn(),
       renameFile: vi.fn(),
       updateDiffViewDecorationSetting: vi.fn(),
       recreateGhostFaintDecorationType: vi.fn(),
@@ -70,7 +70,7 @@ describe('registerEventHandlers', () => {
     const decorator = {
       setActiveEditor: vi.fn(),
       updateDecorationsForSelection: vi.fn(),
-      updateDecorationsFromChange: vi.fn(),
+      updateDecorationsForDocument: vi.fn(),
       renameFile: vi.fn(),
       updateDiffViewDecorationSetting: vi.fn(),
       recreateGhostFaintDecorationType: vi.fn(),
@@ -93,7 +93,7 @@ describe('registerEventHandlers', () => {
     expect(decorator.updateDecorationsForSelection).toHaveBeenCalledWith(
       vscode.TextEditorSelectionChangeKind.Mouse
     );
-    expect(decorator.updateDecorationsFromChange).toHaveBeenCalledWith({ document });
+    expect(decorator.updateDecorationsForDocument).toHaveBeenCalledWith({ document });
     expect(decorator.renameFile).toHaveBeenCalledWith('file:///old.md', 'file:///new.md');
   });
 
@@ -118,7 +118,7 @@ describe('registerEventHandlers', () => {
     const decorator = {
       setActiveEditor: vi.fn(),
       updateDecorationsForSelection: vi.fn(),
-      updateDecorationsFromChange: vi.fn(),
+      updateDecorationsForDocument: vi.fn(),
       renameFile: vi.fn(),
       updateDiffViewDecorationSetting: vi.fn(),
       recreateGhostFaintDecorationType: vi.fn(),
@@ -183,7 +183,7 @@ describe('registerEventHandlers', () => {
     const background_editor = make_editor('/background.md');
     const active_editor = make_editor('/active.md');
     (vscode.window as any).visibleTextEditors = [background_editor, active_editor];
-    const decorator = { setActiveEditor: vi.fn(), updateDecorationsFromChange: vi.fn() };
+    const decorator = { setActiveEditor: vi.fn(), updateDecorationsForDocument: vi.fn() };
     registerEventHandlers(decorator as any, { setEnabled: vi.fn() } as any);
 
     (vscode.window as any).activeTextEditor = active_editor;
@@ -194,7 +194,7 @@ describe('registerEventHandlers', () => {
     (vscode.window as any).activeTextEditor = undefined;
     change_listener!({ document: background_editor.document });
     expect(decorator.setActiveEditor.mock.calls).toEqual([[background_editor]]);
-    expect(decorator.updateDecorationsFromChange).not.toHaveBeenCalled();
+    expect(decorator.updateDecorationsForDocument).not.toHaveBeenCalled();
     (vscode.window as any).visibleTextEditors = [];
   });
 

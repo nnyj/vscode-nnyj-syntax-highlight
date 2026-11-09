@@ -36,6 +36,11 @@ export class TableFoldingProvider implements FoldingRangeProvider {
   isFoldable(document: TextDocument, block: TableBlock): boolean {
     return !!this.provided.get(document.uri.toString())?.has(rangeKey(block));
   }
+
+  /** Start lines of the table ranges VS Code has, current after line shifts unlike lines stored at fold time. */
+  foldableLines(document: TextDocument): number[] {
+    return [...this.provided.get(document.uri.toString()) ?? []].map(range => Number(range.split(':')[0]));
+  }
 }
 
 /**
@@ -47,7 +52,7 @@ export class TableFoldingProvider implements FoldingRangeProvider {
 export class TableUpdateCoordinator {
   readonly foldingProvider: TableFoldingProvider;
   private insets = new Map<TextEditor, EditorInsets>();
-  private folds = new Map<TextEditor, { key: string; folded: number[] }>();
+  private foldKeys = new Map<TextEditor, string>();
   private measuredLines = new Map<string, number>();
   private visibleRight = new Map<TextEditor, number>();
   private readonly hideHeader = window.createTextEditorDecorationType({ opacity: '0' });
@@ -70,7 +75,7 @@ export class TableUpdateCoordinator {
       if (other !== editor && !window.visibleTextEditors.includes(other)) {
         insets.dispose();
         this.insets.delete(other);
-        this.folds.delete(other);
+        this.foldKeys.delete(other);
         this.visibleRight.delete(other);
       }
     }
@@ -96,18 +101,18 @@ export class TableUpdateCoordinator {
     }
     this.insetsFor(editor).sync(editor, wanted);
     editor.setDecorations(this.hideHeader, rendered.map(block => editor.document.lineAt(block.startLine).range));
-    this.syncFolds(editor, rendered.filter(block => this.foldingProvider.isFoldable(editor.document, block)),
-      tableBlocks.filter(block => !rendered.includes(block)));
+    const isFoldable = (block: TableBlock) => this.foldingProvider.isFoldable(editor.document, block);
+    this.syncFolds(editor, rendered.filter(isFoldable), tableBlocks.filter(block => !rendered.includes(block) && isFoldable(block)));
   }
 
   clear(editor: TextEditor): void {
     this.insets.get(editor)?.dispose();
     editor.setDecorations(this.hideHeader, []);
-    const folded = this.folds.get(editor)?.folded ?? [];
-    if (folded.length > 0 && editor === window.activeTextEditor) {
-      void commands.executeCommand('editor.unfold', { levels: 1, selectionLines: folded });
+    const lines = this.foldingProvider.foldableLines(editor.document);
+    if (this.foldKeys.has(editor) && lines.length > 0 && editor === window.activeTextEditor) {
+      void commands.executeCommand('editor.unfold', { levels: 1, selectionLines: lines });
     }
-    this.folds.delete(editor);
+    this.foldKeys.delete(editor);
   }
 
   dispose(): void {
@@ -125,14 +130,18 @@ export class TableUpdateCoordinator {
     return insets;
   }
 
-  /** Fold and unfold only on change: editor.fold with empty selectionLines folds the whole file. */
+  /**
+   * Fold and unfold only on change: editor.fold with empty selectionLines folds the whole file.
+   * Only lines with a table range: on other lines VS Code folds or unfolds the enclosing section.
+   * Version in the key: an external edit can expand a table without moving its lines, so refold after each edit.
+   */
   private syncFolds(editor: TextEditor, fold: TableBlock[], unfold: TableBlock[]): void {
-    if (editor !== window.activeTextEditor) return;
+    if (editor !== window.activeTextEditor || !this.insetsFor(editor).supported) return;
     const foldLines = fold.map(block => block.startLine);
     const unfoldLines = unfold.map(block => block.startLine);
-    const key = `${foldLines.join(',')}|${unfoldLines.join(',')}`;
-    if (this.folds.get(editor)?.key === key) return;
-    this.folds.set(editor, { key, folded: foldLines });
+    const key = `${editor.document.version}|${foldLines.join(',')}|${unfoldLines.join(',')}`;
+    if (this.foldKeys.get(editor) === key) return;
+    this.foldKeys.set(editor, key);
     if (unfoldLines.length > 0) void commands.executeCommand('editor.unfold', { levels: 1, selectionLines: unfoldLines });
     if (foldLines.length > 0) void commands.executeCommand('editor.fold', { levels: 1, selectionLines: foldLines });
   }

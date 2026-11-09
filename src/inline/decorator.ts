@@ -527,16 +527,6 @@ export class Decorator {
   }
 
   /**
-   * Handles document change events with change tracking.
-   * 
-   * @param {TextDocumentChangeEvent} event - The document change event
-   */
-  updateDecorationsFromChange(event: TextDocumentChangeEvent): void {
-    // Update decorations with debounce
-    this.updateDecorationsForDocument(event);
-  }
-
-  /**
    * Recreates the code decoration type when theme changes.
    * This ensures the background color adapts to the new theme.
    */
