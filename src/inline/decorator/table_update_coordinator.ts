@@ -138,17 +138,23 @@ export class TableUpdateCoordinator {
     if (editor !== window.activeTextEditor || !this.insetsFor(editor).supported) return;
     const unfoldLines = unfold.map(block => block.startLine);
     const unfoldKey = unfoldLines.join(',');
-    if (this.folded.get(editor)?.unfoldKey !== unfoldKey && unfoldLines.length > 0) {
+    const previous = this.folded.get(editor);
+    if (previous?.unfoldKey !== unfoldKey && unfoldLines.length > 0) {
       void commands.executeCommand('editor.unfold', { levels: 1, selectionLines: unfoldLines });
     }
     this.folded.set(editor, { version: editor.document.version, blocks: fold, unfoldKey });
-    this.refold(editor);
+    // An external write over folded rows can hide every line below them with no visible range change
+    if (previous?.version !== editor.document.version && fold.length > 0) {
+      void commands.executeCommand('editor.fold', { levels: 1, selectionLines: fold.map(block => block.startLine) });
+    } else {
+      this.refold(editor);
+    }
   }
 
   /**
    * Folds rendered tables whose header and first row show in the viewport.
-   * VS Code has no fold state API or event: Unfold All, a recursive unfold, or a range recompute after an
-   * external edit open the rows, and the visible range change that follows calls this again.
+   * VS Code has no fold state API or event: Unfold All or a recursive unfold open the rows, and the visible
+   * range change that follows calls this again.
    * Unpatched, editor.fold scrolls to an off-screen cursor, so tables then refold only while the cursor shows.
    */
   refold(editor: TextEditor): void {
