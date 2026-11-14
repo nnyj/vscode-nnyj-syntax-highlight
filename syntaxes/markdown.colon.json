@@ -1,6 +1,6 @@
 {
   "scopeName": "markdown.colon",
-  "injectionSelector": "text.html.markdown - meta.embedded - markup.fenced_code",
+  "injectionSelector": "text.html.markdown - meta.embedded - markup.fenced_code - comment",
   "patterns": [
     {
       "include": "#colon"

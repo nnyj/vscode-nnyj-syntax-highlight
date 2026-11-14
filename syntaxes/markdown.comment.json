@@ -1,6 +1,6 @@
 {
   "scopeName": "markdown.comment",
-  "injectionSelector": "L:text.html.markdown - meta.embedded - markup.fenced_code",
+  "injectionSelector": "L:text.html.markdown - meta.embedded - markup.fenced_code - comment",
   "patterns": [
     {
       "include": "#arbitrary-string"
