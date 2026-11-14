@@ -234,6 +234,7 @@ export const window = {
   onDidChangeActiveTextEditor: () => ({ dispose: () => {} }),
   onDidChangeTextEditorSelection: () => ({ dispose: () => {} }),
   onDidChangeTextEditorViewColumn: () => ({ dispose: () => {} }),
+  onDidChangeTextEditorVisibleRanges: () => ({ dispose: () => {} }),
   onDidChangeActiveColorTheme: () => ({ dispose: () => {} }),
 };
 

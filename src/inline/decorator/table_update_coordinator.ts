@@ -1,4 +1,4 @@
-import { commands, FoldingRange, FoldingRangeProvider, Position, Selection, TextDocument, TextEditor, Uri, window, workspace } from 'vscode';
+import { commands, FoldingRange, FoldingRangeProvider, env, Position, Selection, TextDocument, TextEditor, Uri, window, workspace } from 'vscode';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import type { TableBlock } from '../parser';
@@ -52,7 +52,7 @@ export class TableFoldingProvider implements FoldingRangeProvider {
 export class TableUpdateCoordinator {
   readonly foldingProvider: TableFoldingProvider;
   private insets = new Map<TextEditor, EditorInsets>();
-  private foldKeys = new Map<TextEditor, string>();
+  private folded = new Map<TextEditor, { version: number; blocks: TableBlock[]; unfoldKey: string }>();
   private measuredLines = new Map<string, number>();
   private visibleRight = new Map<TextEditor, number>();
   private readonly hideHeader = window.createTextEditorDecorationType({ opacity: '0' });
@@ -75,7 +75,7 @@ export class TableUpdateCoordinator {
       if (other !== editor && !window.visibleTextEditors.includes(other)) {
         insets.dispose();
         this.insets.delete(other);
-        this.foldKeys.delete(other);
+        this.folded.delete(other);
         this.visibleRight.delete(other);
       }
     }
@@ -109,10 +109,10 @@ export class TableUpdateCoordinator {
     this.insets.get(editor)?.dispose();
     editor.setDecorations(this.hideHeader, []);
     const lines = this.foldingProvider.foldableLines(editor.document);
-    if (this.foldKeys.has(editor) && lines.length > 0 && editor === window.activeTextEditor) {
+    if (this.folded.has(editor) && lines.length > 0 && editor === window.activeTextEditor) {
       void commands.executeCommand('editor.unfold', { levels: 1, selectionLines: lines });
     }
-    this.foldKeys.delete(editor);
+    this.folded.delete(editor);
   }
 
   dispose(): void {
@@ -131,18 +131,36 @@ export class TableUpdateCoordinator {
   }
 
   /**
-   * Fold and unfold only on change: editor.fold with empty selectionLines folds the whole file.
+   * Unfold only on change: editor.unfold with empty selectionLines unfolds the whole file.
    * Only lines with a table range: on other lines VS Code folds or unfolds the enclosing section.
-   * Version in the key: an external edit can expand a table without moving its lines, so refold after each edit.
    */
   private syncFolds(editor: TextEditor, fold: TableBlock[], unfold: TableBlock[]): void {
     if (editor !== window.activeTextEditor || !this.insetsFor(editor).supported) return;
-    const foldLines = fold.map(block => block.startLine);
     const unfoldLines = unfold.map(block => block.startLine);
-    const key = `${editor.document.version}|${foldLines.join(',')}|${unfoldLines.join(',')}`;
-    if (this.foldKeys.get(editor) === key) return;
-    this.foldKeys.set(editor, key);
-    if (unfoldLines.length > 0) void commands.executeCommand('editor.unfold', { levels: 1, selectionLines: unfoldLines });
+    const unfoldKey = unfoldLines.join(',');
+    if (this.folded.get(editor)?.unfoldKey !== unfoldKey && unfoldLines.length > 0) {
+      void commands.executeCommand('editor.unfold', { levels: 1, selectionLines: unfoldLines });
+    }
+    this.folded.set(editor, { version: editor.document.version, blocks: fold, unfoldKey });
+    this.refold(editor);
+  }
+
+  /**
+   * Folds rendered tables whose header and first row show in the viewport.
+   * VS Code has no fold state API or event: Unfold All, a recursive unfold, or a range recompute after an
+   * external edit open the rows, and the visible range change that follows calls this again.
+   * Unpatched, editor.fold scrolls to an off-screen cursor, so tables then refold only while the cursor shows.
+   */
+  refold(editor: TextEditor): void {
+    const folded = this.folded.get(editor);
+    // Lines from an older version may point at other text, folding there folds the enclosing section
+    if (editor !== window.activeTextEditor || !folded || folded.version !== editor.document.version) return;
+    const isShown = (line: number) => editor.visibleRanges.some(range => range.start.line <= line && range.end.line >= line);
+    if (!foldKeepsScroll() && !isShown(editor.selection.active.line)) return;
+    const foldLines = folded.blocks
+      .filter(block => isShown(block.startLine) && isShown(block.startLine + 1) &&
+        this.foldingProvider.isFoldable(editor.document, block))
+      .map(block => block.startLine);
     if (foldLines.length > 0) void commands.executeCommand('editor.fold', { levels: 1, selectionLines: foldLines });
   }
 
@@ -171,6 +189,19 @@ function openLink(href: string, documentUri: Uri): void {
     ? commands.executeCommand(target.command, ...target.args)
     : commands.executeCommand('vscode.open', target.uri);
   opened.then(undefined, error => logWarn('Failed to open link', error));
+}
+
+let foldKeepsScrollCached: boolean | undefined;
+
+/** Workbench patched with `fold no reveal` from vscode_workbench_patch.js, which adds this marker. */
+function foldKeepsScroll(): boolean {
+  const workbench = join(env.appRoot, 'out', 'vs', 'workbench', 'workbench.desktop.main.js');
+  try {
+    foldKeepsScrollCached ??= readFileSync(workbench, 'utf8').includes('selectionLines&&');
+  } catch {
+    foldKeepsScrollCached = false;
+  }
+  return foldKeepsScrollCached;
 }
 
 function rangeKey(block: TableBlock): string {

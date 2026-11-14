@@ -15,6 +15,10 @@ export function registerEventHandlers(
     vscode.window.onDidChangeTextEditorViewColumn(() => {
       decorator.updateDecorationsForSelection();
     }),
+    // Fires on fold and unfold too, see TableUpdateCoordinator.refold
+    vscode.window.onDidChangeTextEditorVisibleRanges((event) => {
+      decorator.tableCoordinator.refold(event.textEditor);
+    }),
     vscode.window.onDidChangeTextEditorSelection((event) => {
       decorator.updateDecorationsForSelection(event.kind);
     }),
