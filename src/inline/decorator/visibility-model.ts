@@ -1,8 +1,8 @@
 import { Range, ThemeColor, type DecorationOptions, type Position, type TextEditor } from 'vscode';
 import type { DecorationRange, DecorationType } from '../parser';
-import { isWideChar } from '../parser/tables';
 import { isMarkerDecorationType } from './decoration-categories';
 import { isCopiedFence } from '../code_block_copy';
+import { visualColumn } from './editor_insets';
 
 export type ScopeEntry = {
   startPos: number;
@@ -101,11 +101,11 @@ export function filterDecorationsForEditor(
       table.startPos <= decoration.startPos && table.endPos >= decoration.endPos)) continue;
     const isActiveLine = activeLines.size > 0 && activeLines.has(range.start.line);
 
-    // Code blocks and frontmatter use opaque, whole-line backgrounds.
-    // On some themes, VS Code's native selection highlight is drawn "under" those
-    // backgrounds, making selections appear invisible. We keep the background,
+    // Frontmatter uses an opaque, whole-line background.
+    // On some themes, VS Code's native selection highlight is drawn "under" it,
+    // making selections appear invisible. We keep the background,
     // but add an explicit selection overlay decoration on top for the intersection.
-    if ((decoration.type === 'codeBlock' || decoration.type === 'frontmatter') && selectedRanges.length > 0) {
+    if (decoration.type === 'frontmatter' && selectedRanges.length > 0) {
       for (const selection of selectedRanges) {
         const intersection = range.intersection(selection);
         if (intersection !== undefined) {
@@ -115,11 +115,7 @@ export function filterDecorationsForEditor(
     }
 
     if (decoration.type === 'codeBlock') {
-      const fences_visible = rangeIntersectsAny(range, rawRanges) ||
-        activeLines.has(range.start.line) || activeLines.has(range.end.line);
-      const { card, wide } = codeBlockCard(editor, range, fences_visible);
-      filtered.set('codeBlock', [...(filtered.get('codeBlock') || []), ...card]);
-      filtered.set('wideChar', [...(filtered.get('wideChar') || []), ...wide]);
+      filtered.set('codeBlock', [...(filtered.get('codeBlock') || []), ...codeBlockLines(editor, range)]);
       continue;
     }
 
@@ -278,48 +274,41 @@ export function filterDecorationsForEditor(
   return filtered;
 }
 
-const FENCE_PATTERN = /^[ \t]*(`{3,}|~{3,})/;
-const COPY_BUTTON = ' ⎘';
-const COPIED_LABEL = ' ✓ Copied';
-const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
-// Emoji and CJK fallback glyphs render off the monospace grid, so code blocks pin them to 2ch.
-const EMOJI_PATTERN = /\p{Emoji_Presentation}|\uFE0F|\u20E3/u;
+const COPY_BUTTON = ' ⎘';
+const COPIED_LABEL = ' ✓ Copied';
 
-// Code block background as a card from the fence column to 1 column past the widest line.
-// Full-width backgrounds would paint under the overlay scrollbar. The fence line gets the copy button.
-// Box text: NBSP before the button keeps the gap, ZWSP gives empty boxes the line height.
-function codeBlockCard(editor: TextEditor, range: Range, fences_visible: boolean): { card: DecorationOptions[]; wide: Range[] } {
-  const indent = range.start.character;
-  const lines: { length: number; visual: number }[] = [];
-  const wide: Range[] = [];
-  for (let line = range.start.line; line <= range.end.line; line++) {
-    const text = editor.document.lineAt(line).text;
-    const is_fence = line === range.start.line || line === range.end.line;
-    const hidden = is_fence && !fences_visible ? FENCE_PATTERN.exec(text)?.[1].length ?? 0 : 0;
-    let columns = 0;
-    for (const { segment, index } of graphemes.segment(text)) {
-      const is_wide = isWideChar(segment) || EMOJI_PATTERN.test(segment);
-      if (is_wide) wide.push(new Range(line, index, line, index + segment.length));
-      columns += is_wide ? 2 : 1;
-    }
-    lines.push({ length: text.length, visual: columns - hidden });
-  }
-  const button = isCopiedFence(editor.document.uri.toString(), range.start.line) ? COPIED_LABEL : COPY_BUTTON;
-  const right = Math.max(...lines.map((line, i) => line.visual + (i === 0 ? button.length : 0))) + 1;
-  const card = lines.map((line, i) => {
-    const box_start = Math.max(line.visual, indent);
-    return {
-      range: new Range(range.start.line + i, Math.min(indent, line.length), range.start.line + i, line.length),
-      renderOptions: { after: {
-        contentText: i === 0 ? button : '​',
-        color: new ThemeColor('descriptionForeground'),
-        backgroundColor: new ThemeColor('textCodeBlock.background'),
-        margin: `0 0 0 ${box_start - line.visual}ch`,
-        width: `${right - box_start}ch`,
-      } },
-    };
+const FENCE_PATTERN = /^[ \t]*(`{3,}|~{3,})/;
+// Block color over the editor background: opaque, so overlapping boxes keep one shade
+const CODE_BLOCK_BACKGROUND = 'linear-gradient(var(--vscode-textCodeBlock-background), var(--vscode-textCodeBlock-background)), ' +
+  'var(--vscode-editor-background)';
+
+// Code block background from the fence column to the right edge, fence lines uncolored, the opening one gets the copy button.
+// Each content line paints a box behind the text, z-index -1 keeps it under the selection and current line highlight.
+// Wrapped rows are unknown here: the box from the line's first row reaches down to the block end, the box from its last
+// row reaches up to the block start, assuming one row per line. Together they cover wrapped rows and never leave the block.
+function codeBlockLines(editor: TextEditor, range: Range): DecorationOptions[] {
+  const document = editor.document;
+  const button = isCopiedFence(document.uri.toString(), range.start.line) ? COPIED_LABEL : COPY_BUTTON;
+  const fence = new Range(range.start.line, 0, range.start.line, document.lineAt(range.start.line).text.length);
+  const lines: DecorationOptions[] = [
+    { range: fence, renderOptions: { after: { contentText: button, color: new ThemeColor('descriptionForeground') } } },
+  ];
+  const first = range.start.line + 1;
+  const closed = range.end.line > range.start.line && FENCE_PATTERN.test(document.lineAt(range.end.line).text);
+  const last = closed ? range.end.line - 1 : range.end.line;
+  const indent = visualColumn(editor, range.start.line, range.start.character);
+  const box = (edge: 'top' | 'bottom', rows: number) => ({
+    contentText: '​',
+    textDecoration: `none; position: absolute; z-index: -1; left: ${indent}ch; width: 100vw; ${edge}: 0; ` +
+      `height: ${rows * 100}%; background: ${CODE_BLOCK_BACKGROUND};`,
   });
-  return { card, wide };
+  for (let line = first; line <= last; line++) {
+    lines.push({
+      range: new Range(line, 0, line, document.lineAt(line).text.length),
+      renderOptions: { before: box('top', last - line + 1), after: box('bottom', line - first + 1) },
+    });
+  }
+  return lines;
 }
 
 function collectRawRanges(selectedRanges: Range[], scopes: ScopeEntry[]): Range[] {

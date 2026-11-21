@@ -182,7 +182,7 @@ describe('table decoration rendering', () => {
 });
 
 describe('selection overlay for codeBlock/frontmatter', () => {
-  it('adds selectionOverlay when non-empty selection covers a codeBlock', () => {
+  it('does not add selectionOverlay over a codeBlock, its background sits under the selection', () => {
     const text = '```\ncode\n```';
     const decs: DecorationRange[] = [
       { startPos: 0, endPos: 12, type: 'codeBlock' } as any,
@@ -195,7 +195,7 @@ describe('selection overlay for codeBlock/frontmatter', () => {
       text,
       (s, e, t) => simpleRangeFactory(s, e, t),
     );
-    expect(result.has('selectionOverlay')).toBe(true);
+    expect(result.has('selectionOverlay')).toBe(false);
   });
 
   it('adds selectionOverlay when selection covers frontmatter', () => {
@@ -370,30 +370,22 @@ describe('filterDecorationsForEditor — basic cases', () => {
   });
 });
 
-describe('code block card', () => {
-  it('aligns every line box to one right edge, starting at the fence column', () => {
-    const text = '- a\n  ```sh\n  ls -la\n\n  ```\nafter';
+describe('code block background', () => {
+  it('colors content lines from the fence column, fence lines stay uncolored', () => {
+    const text = '- a\n  ```sh\n  ✅ ls -la\n\n  ```\nafter';
     const decs: DecorationRange[] = [
       { startPos: 6, endPos: text.indexOf('```', 10) + 3, type: 'codeBlock' } as any,
     ];
     const editor = makeEditorWithSelection(text, 5, 0, 5, 0);
     const result = filterDecorationsForEditor(editor as any, decs, [], text, (s, e, t) => simpleRangeFactory(s, e, t));
-    const boxes = (result.get('codeBlock') as any[]).map(item => [item.renderOptions.after.margin, item.renderOptions.after.width]);
-    // Right edge 9: widest visual line `  ls -la` is 8 columns, plus 1
-    expect(boxes).toEqual([
-      ['0 0 0 0ch', '5ch'],
-      ['0 0 0 0ch', '1ch'],
-      ['0 0 0 2ch', '7ch'],
-      ['0 0 0 0ch', '7ch'],
-    ]);
-  });
-
-  it('counts emoji as 2 columns and pins them to 2ch', () => {
-    const text = '```\n✅ a\n```\nafter';
-    const decs: DecorationRange[] = [{ startPos: 0, endPos: text.lastIndexOf('```') + 3, type: 'codeBlock' } as any];
-    const editor = makeEditorWithSelection(text, 3, 0, 3, 0);
-    const result = filterDecorationsForEditor(editor as any, decs, [], text, (s, e, t) => simpleRangeFactory(s, e, t));
-    expect((result.get('codeBlock') as any[]).map(item => item.renderOptions.after.width)).toEqual(['5ch', '1ch', '5ch']);
-    expect((result.get('wideChar') as any[]).map(range => [range.start.line, range.start.character, range.end.character])).toEqual([[1, 0, 1]]);
+    const lines = (result.get('codeBlock') as any[]).map(item => {
+      const { before, after } = item.renderOptions;
+      const height = (css: string | undefined) => /height: (\d+)%/.exec(css ?? '')?.[1];
+      return [item.range.start.line, before ? height(before.textDecoration) : after.contentText, height(after.textDecoration)];
+    });
+    // Fence line: copy button only. Content lines 2-3: boxes down to the block end and up to the block start.
+    // Closing fence line 4: no background.
+    expect(lines).toEqual([[1, ' ⎘', undefined], [2, '200', '100'], [3, '100', '200']]);
+    expect((result.get('codeBlock') as any[])[1].renderOptions.before.textDecoration).toContain('left: 2ch');
   });
 });

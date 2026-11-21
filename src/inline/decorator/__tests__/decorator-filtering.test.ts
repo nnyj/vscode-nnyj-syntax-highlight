@@ -282,7 +282,7 @@ describe('Decorator filtering behavior', () => {
     expect(filtered.get('code')?.length).toBe(1);
   });
 
-  it('keeps code block background and adds selection overlay when selecting inside a code block', () => {
+  it('keeps code block background without selection overlay when selecting inside a code block', () => {
     const text = '```\ncode\n```';
     const decorations: DecorationRange[] = [
       // Background for the whole code block (fenceStart..closingFenceEnd)
@@ -299,11 +299,11 @@ describe('Decorator filtering behavior', () => {
     const selection = new Selection(new Position(1, 1), new Position(1, 3));
     const filtered = filterDecorationsForSelection(text, decorations, [[0, 12]], selection);
 
-    // In raw state, we show the original markdown (including fences),
-    // but keep the background and explicitly overlay selection color so it's visible.
-    expect(filtered.get('codeBlock')?.length).toBe(3);
+    // In raw state, we show the original markdown (including fences) and keep the background.
+    // The background sits under the native selection, so no selection overlay.
+    expect(filtered.get('codeBlock')?.length).toBe(2);
     expect(filtered.has('hide')).toBe(false);
-    expect(filtered.get('selectionOverlay')?.length).toBe(1);
+    expect(filtered.has('selectionOverlay')).toBe(false);
   });
 
   it('keeps code block background decoration when selection is outside the code block', () => {
@@ -316,7 +316,7 @@ describe('Decorator filtering behavior', () => {
     const selection = new Selection(new Position(3, 0), new Position(3, 0));
     const filtered = filterDecorationsForSelection(text, decorations, [[0, 12]], selection);
 
-    expect(filtered.get('codeBlock')?.length).toBe(3);
+    expect(filtered.get('codeBlock')?.length).toBe(2);
   });
 
   it('reveals link URL in raw state when cursor is inside the link', () => {

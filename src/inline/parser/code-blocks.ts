@@ -113,16 +113,12 @@ export function processCodeBlock(
   const closingEnd = closingLineEnd !== -1 ? closingLineEnd + 1 : codeEnd;
   const isMermaid = node.lang?.trim() === 'mermaid';
 
+  // Fences stay visible, only the code lines get the background
   if (!isMermaid) {
     decorations.push({
       startPos: fenceStart,
       endPos: closingFenceEnd,
       type: 'codeBlock',
-    });
-    decorations.push({
-      startPos: fenceStart,
-      endPos: openingFenceEnd,
-      type: 'hide',
     });
 
     const languageStart = openingFenceEnd;
@@ -141,20 +137,6 @@ export function processCodeBlock(
         });
       }
     }
-
-    if (openingLineEnd !== -1 && openingLineEnd < closingFence) {
-      decorations.push({
-        startPos: openingLineEnd,
-        endPos: openingLineEnd + 1,
-        type: 'hide',
-      });
-    }
-
-    decorations.push({
-      startPos: closingFence,
-      endPos: closingEnd,
-      type: 'hide',
-    });
   } else {
     decorations.push({
       startPos: fenceStart,

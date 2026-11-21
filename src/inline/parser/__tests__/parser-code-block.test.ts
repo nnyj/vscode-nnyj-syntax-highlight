@@ -8,20 +8,12 @@ describe('MarkdownParser - Code Blocks', () => {
   });
 
   describe('basic code block', () => {
-    it('should hide opening and closing fence markers', () => {
+    it('should keep opening and closing fence markers visible', () => {
       const markdown = '```\ncode\n```';
       const result = parser.extractDecorations(markdown);
-      
-      // Should have hide decorations for fences
-      const hideDecs = result.filter(d => d.type === 'hide');
-      expect(hideDecs.length).toBeGreaterThan(0);
-      
-      // Opening fence should be hidden
-      expect(hideDecs.some(d => d.startPos === 0)).toBe(true);
-      
-      // Closing fence should be hidden
-      const closingFence = hideDecs.find(d => d.startPos > 5);
-      expect(closingFence).toBeDefined();
+
+      expect(result.find(d => d.type === 'codeBlock')).toMatchObject({ startPos: 0, endPos: 12 });
+      expect(result.filter(d => d.type === 'hide')).toEqual([]);
     });
   });
 
@@ -30,8 +22,7 @@ describe('MarkdownParser - Code Blocks', () => {
       const markdown = '```\ncode\n```\ntext';
       const result = parser.extractDecorations(markdown);
       
-      const hideDecs = result.filter(d => d.type === 'hide');
-      expect(hideDecs.some(d => d.startPos === 0)).toBe(true);
+      expect(result.find(d => d.type === 'codeBlock')?.startPos).toBe(0);
     });
   });
 
@@ -40,9 +31,8 @@ describe('MarkdownParser - Code Blocks', () => {
       const markdown = 'text\n```\ncode\n```';
       const result = parser.extractDecorations(markdown);
       
-      const hideDecs = result.filter(d => d.type === 'hide');
-      // Should find closing fence
-      expect(hideDecs.length).toBeGreaterThan(0);
+      expect(result.some(d => d.type === 'codeBlock')).toBe(true);
+      expect(result.filter(d => d.type === 'hide')).toEqual([]);
     });
   });
 
@@ -51,9 +41,8 @@ describe('MarkdownParser - Code Blocks', () => {
       const markdown = '```\nfunction test() {\n  return true;\n}\n```';
       const result = parser.extractDecorations(markdown);
       
-      // Should hide both fences
-      const hideDecs = result.filter(d => d.type === 'hide');
-      expect(hideDecs.length).toBeGreaterThan(0);
+      expect(result.some(d => d.type === 'codeBlock')).toBe(true);
+      expect(result.filter(d => d.type === 'hide')).toEqual([]);
     });
   });
 
@@ -62,9 +51,8 @@ describe('MarkdownParser - Code Blocks', () => {
       const markdown = '```\n```';
       const result = parser.extractDecorations(markdown);
       
-      // Should still hide fences
-      const hideDecs = result.filter(d => d.type === 'hide');
-      expect(hideDecs.length).toBeGreaterThan(0);
+      expect(result.some(d => d.type === 'codeBlock')).toBe(true);
+      expect(result.filter(d => d.type === 'hide')).toEqual([]);
     });
   });
 
@@ -73,8 +61,8 @@ describe('MarkdownParser - Code Blocks', () => {
       const markdown = '```\n   \n```';
       const result = parser.extractDecorations(markdown);
       
-      const hideDecs = result.filter(d => d.type === 'hide');
-      expect(hideDecs.length).toBeGreaterThan(0);
+      expect(result.some(d => d.type === 'codeBlock')).toBe(true);
+      expect(result.filter(d => d.type === 'hide')).toEqual([]);
     });
   });
 
@@ -83,33 +71,24 @@ describe('MarkdownParser - Code Blocks', () => {
       const markdown = '```\ncode1\n```\n```\ncode2\n```';
       const result = parser.extractDecorations(markdown);
       
-      const hideDecs = result.filter(d => d.type === 'hide');
-      // Should have hide decorations for all fences
-      expect(hideDecs.length).toBeGreaterThanOrEqual(4);
+      expect(result.filter(d => d.type === 'codeBlock').length).toBe(2);
+      expect(result.filter(d => d.type === 'hide')).toEqual([]);
     });
   });
 
   describe('code block with language identifier', () => {
-    it('should hide fence markers and render language identifier with opacity', () => {
+    it('should keep fence markers visible and render language identifier with opacity', () => {
       const markdown = '```javascript\ncode\n```';
       const result = parser.extractDecorations(markdown);
       
-      // Opening fence (```) should be hidden (3 characters)
-      const openingFence = result.find(d => d.type === 'hide' && d.startPos === 0);
-      expect(openingFence).toBeDefined();
-      expect(openingFence?.endPos).toBe(3);
+      expect(result.filter(d => d.type === 'hide')).toEqual([]);
       
       // Language identifier should have codeBlockLanguage decoration
       const languageDec = result.find(d => d.type === 'codeBlockLanguage');
       expect(languageDec).toBeDefined();
       expect(languageDec?.startPos).toBe(3); // After ```
       expect(languageDec?.endPos).toBe(13); // "javascript" is 10 chars, so 3 + 10 = 13
-      
-      // Newline after language should be hidden
-      const newlineHide = result.find(d => d.type === 'hide' && d.startPos === 13);
-      expect(newlineHide).toBeDefined();
-      expect(newlineHide?.endPos).toBe(14); // Newline is 1 char
-    });
+          });
 
     it('should handle code block with different language identifiers', () => {
       const markdown = '```python\ncode\n```\n```typescript\ncode\n```';
@@ -138,9 +117,8 @@ describe('MarkdownParser - Code Blocks', () => {
       const codeBlock = result.find(d => d.type === 'codeBlock');
       expect(codeBlock).toBeDefined();
       
-      // Should have hide decorations for fences
-      const hideDecs = result.filter(d => d.type === 'hide');
-      expect(hideDecs.length).toBeGreaterThan(0);
+      expect(result.some(d => d.type === 'codeBlock')).toBe(true);
+      expect(result.filter(d => d.type === 'hide')).toEqual([]);
       
       // Should have language decoration
       const languageDec = result.find(d => d.type === 'codeBlockLanguage');
@@ -155,9 +133,8 @@ describe('MarkdownParser - Code Blocks', () => {
       const codeBlock = result.find(d => d.type === 'codeBlock');
       expect(codeBlock).toBeDefined();
       
-      // Should have hide decorations for fences
-      const hideDecs = result.filter(d => d.type === 'hide');
-      expect(hideDecs.length).toBeGreaterThan(0);
+      expect(result.some(d => d.type === 'codeBlock')).toBe(true);
+      expect(result.filter(d => d.type === 'hide')).toEqual([]);
     });
 
     it('should support tilde fences with more than 3 characters', () => {
@@ -286,35 +263,11 @@ describe('MarkdownParser - Code Blocks', () => {
       });
     });
 
-    it('should preserve fence structure hide decorations but remove other hide decorations', () => {
+    it('should not hide fences or markdown syntax inside a code block', () => {
       const markdown = '```javascript\ncode with **bold** that should not be parsed\n```';
       const result = parser.extractDecorations(markdown);
-      
-      const codeBlockStart = markdown.indexOf('```');
-      const codeBlockEnd = markdown.lastIndexOf('```') + 3;
-      
-      // Should have hide decorations for fences
-      const fenceHides = result.filter(d => 
-        d.type === 'hide' && 
-        (d.startPos === codeBlockStart || d.endPos === codeBlockEnd)
-      );
-      expect(fenceHides.length).toBeGreaterThan(0);
-      
-      // Should NOT have hide decorations for bold markers inside code block
-      const boldHideDecs = result.filter(d => 
-        d.type === 'hide' && 
-        d.startPos > codeBlockStart && 
-        d.endPos < codeBlockEnd &&
-        d.startPos !== codeBlockStart // Not opening fence
-      );
-      // Any hide decorations inside should only be for fence structure (newline after language)
-      // Not for markdown syntax like bold markers
-      boldHideDecs.forEach(hide => {
-        // Should only be on opening line (newline after language)
-        const isOnOpeningLine = hide.startPos >= codeBlockStart && 
-          hide.startPos < codeBlockStart + 20; // Approximate opening line
-        expect(isOnOpeningLine).toBe(true);
-      });
+
+      expect(result.filter(d => d.type === 'hide')).toEqual([]);
     });
 
     it('should handle decorations at exact code block boundaries', () => {
@@ -454,24 +407,12 @@ describe('MarkdownParser - Code Blocks', () => {
       });
     });
 
-    it('should handle code blocks with language identifier and preserve newline hide decoration', () => {
+    it('should handle code blocks with language identifier', () => {
       const markdown = '```typescript\ninterface Test {\n  value: string;\n}\n```';
       const result = parser.extractDecorations(markdown);
-      
-      const codeBlockStart = markdown.indexOf('```');
-      const languageEnd = markdown.indexOf('\n', codeBlockStart);
-      
-      // Should have hide decoration for newline after language
-      const newlineHide = result.find(d => 
-        d.type === 'hide' && 
-        d.startPos === languageEnd &&
-        d.endPos === languageEnd + 1
-      );
-      expect(newlineHide).toBeDefined();
-      
-      // Should have language decoration
-      const languageDec = result.find(d => d.type === 'codeBlockLanguage');
-      expect(languageDec).toBeDefined();
+
+      expect(result.find(d => d.type === 'codeBlockLanguage')).toMatchObject({ startPos: 3, endPos: 13 });
+      expect(result.filter(d => d.type === 'hide')).toEqual([]);
     });
 
     it('should handle adjacent code blocks with no content between', () => {
@@ -482,9 +423,8 @@ describe('MarkdownParser - Code Blocks', () => {
       const codeBlocks = result.filter(d => d.type === 'codeBlock');
       expect(codeBlocks.length).toBe(2);
       
-      // Should have hide decorations for all fences
-      const hideDecs = result.filter(d => d.type === 'hide');
-      expect(hideDecs.length).toBeGreaterThanOrEqual(4); // At least 4 (2 opening + 2 closing)
+      expect(result.filter(d => d.type === 'codeBlock').length).toBe(2);
+      expect(result.filter(d => d.type === 'hide')).toEqual([]);
     });
 
     it('should handle code blocks with strikethrough-like content', () => {

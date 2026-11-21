@@ -193,9 +193,8 @@ export function CodeDecorationType(
  * @returns {vscode.TextEditorDecorationType} A decoration type for code blocks
  */
 export function CodeBlockDecorationType() {
-  return window.createTextEditorDecorationType({
-    backgroundColor: new ThemeColor('textCodeBlock.background'),
-  });
+  // Background boxes come per line as before/after render options, see codeBlockLines
+  return window.createTextEditorDecorationType({});
 }
 
 /**

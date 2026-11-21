@@ -22,7 +22,7 @@ Custom Markdown and Terraform syntax colors with inline Markdown rendering in th
 - With the [inset helper](inset_helper/README.md) installed, images and Mermaid diagrams render full size in a box below their lines, pushing text down.
 - Without the helper, images are drawn over their line and the blank lines below it, Mermaid diagrams are fitted into their code block lines.
 - With the helper, tables outside the cursor render as wrapped HTML below their header line, with the rows folded. Moving the cursor into a table or double-clicking a cell shows the source.
-- Fenced code blocks render as a card from the fence column to the widest line.
+- Fenced code blocks get a background from the fence column to the right edge, wrapped rows included. Fence lines stay visible and uncolored, so adjacent blocks stay apart.
 - Clicking `⎘` after a code block's opening fence copies its content without the fence indent.
 - Markdown markers appear while editing their content.
 - `Toggle Markdown Decorations` switches rendering for the current file.

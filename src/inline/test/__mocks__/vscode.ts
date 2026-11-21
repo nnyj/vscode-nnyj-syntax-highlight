@@ -176,6 +176,7 @@ export const TextDocument = MockTextDocument as any;
 
 class MockTextEditor {
   public selection: MockSelection;
+  public options = { tabSize: 4 };
 
   constructor(
     public document: MockTextDocument,
