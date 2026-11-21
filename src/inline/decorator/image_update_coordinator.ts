@@ -83,7 +83,7 @@ export class ImageUpdateCoordinator {
       if (this.insets.supported) {
         const range = createRange(editor, block.startPos, block.endPos, normalizedText);
         if (!range) continue;
-        const indent = visualColumn(editor.document.lineAt(range.start.line).text, range.start.character);
+        const indent = visualColumn(editor, range.start.line, range.start.character);
         const { lines, body } = buildInsetBody(image, lineHeight, maxWidth);
         wanted_insets.set(`${range.end.line}|${indent}|${uriKey}|${lines}`, { line: range.end.line, lines, indent, body });
         continue;
@@ -109,7 +109,7 @@ export class ImageUpdateCoordinator {
   }
 
   clear(editor: TextEditor): void {
-    this.insets.dispose();
+    this.insets.dispose(editor);
     this.imageDecorations.clear(editor);
   }
 

@@ -113,12 +113,16 @@ function cropSvg(sized: SizedSvg, from: number, height: number): string {
  * Fallback: diagram squeezed into the code block lines.
  */
 export class MermaidUpdateCoordinator {
-  private mermaidUpdateToken = 0;
+  // Per editor, so a background editor's render keeps the active editor's render current
+  private updateTokens = new WeakMap<TextEditor, number>();
+  private nextToken = 0;
   private readonly insets: EditorInsets;
   private readonly naturalSvgCache = new LRUCache<string, Promise<string>>(50);
 
-  cancel(): void {
-    this.mermaidUpdateToken++;
+  /** Drops pending renders of `editor`, or of every editor. */
+  cancel(editor?: TextEditor): void {
+    if (editor) this.updateTokens.delete(editor);
+    else this.updateTokens = new WeakMap();
   }
 
   constructor(
@@ -130,7 +134,7 @@ export class MermaidUpdateCoordinator {
   }
 
   clear(editor: TextEditor): void {
-    this.insets.dispose();
+    this.insets.dispose(editor);
     this.mermaidDecorations.clear(editor);
   }
 
@@ -147,9 +151,11 @@ export class MermaidUpdateCoordinator {
     documentVersion: number,
     hoverIndicatorDecorationType: { dispose(): void } & { key?: string },
   ): Promise<void> {
-    const token = ++this.mermaidUpdateToken;
+    const token = ++this.nextToken;
+    this.updateTokens.set(editor, token);
+    const isStale = () => this.updateTokens.get(editor) !== token || editor.document.version !== documentVersion;
     if (mermaidBlocks.length === 0) {
-      this.insets.dispose();
+      this.insets.dispose(editor);
       this.mermaidDecorations.clear(editor);
       editor.setDecorations(hoverIndicatorDecorationType as never, []);
       return;
@@ -162,7 +168,7 @@ export class MermaidUpdateCoordinator {
     const fontFamily = workspace.getConfiguration('editor').get<string>('fontFamily');
 
     if (this.insets.supported) {
-      await this.updateWithInsets(editor, mermaidBlocks, normalizedText, documentVersion, token, theme, fontFamily, hoverIndicatorDecorationType);
+      await this.updateWithInsets(editor, mermaidBlocks, normalizedText, isStale, theme, fontFamily, hoverIndicatorDecorationType);
       return;
     }
 
@@ -176,7 +182,7 @@ export class MermaidUpdateCoordinator {
       mermaidBlocks,
       this.maxConcurrency,
       async (block): Promise<{ key: string; range: Range; dataUri: string; indicatorRange: Range } | null> => {
-        if (token !== this.mermaidUpdateToken || editor.document.version !== documentVersion) {
+        if (isStale()) {
           return null;
         }
 
@@ -222,7 +228,7 @@ export class MermaidUpdateCoordinator {
         }
 
         const dataUri = await dataUriPromise;
-        if (token !== this.mermaidUpdateToken || editor.document.version !== documentVersion) {
+        if (isStale()) {
           return null;
         }
 
@@ -241,7 +247,7 @@ export class MermaidUpdateCoordinator {
       indicatorRanges.push(result.indicatorRange);
     }
 
-    if (token !== this.mermaidUpdateToken || editor.document.version !== documentVersion) {
+    if (isStale()) {
       return;
     }
 
@@ -253,13 +259,11 @@ export class MermaidUpdateCoordinator {
     editor: TextEditor,
     mermaidBlocks: MermaidBlock[],
     normalizedText: string,
-    documentVersion: number,
-    token: number,
+    isStale: () => boolean,
     theme: 'default' | 'dark',
     fontFamily: string | undefined,
     hoverIndicatorDecorationType: { dispose(): void } & { key?: string },
   ): Promise<void> {
-    const isStale = () => token !== this.mermaidUpdateToken || editor.document.version !== documentVersion;
     const lineHeight = getEditorLineHeight();
     const fontSize = workspace.getConfiguration('editor').get<number>('fontSize', 14);
     const maxWidth = Math.round(fontSize * 0.6 * 200);
@@ -286,7 +290,7 @@ export class MermaidUpdateCoordinator {
 
       const document = editor.document;
       const fenceEndLine = document.positionAt(mapNormalizedToOriginal(block.endPos - 1, normalizedText)).line;
-      const indent = visualColumn(document.lineAt(range.start.line).text, range.start.character);
+      const indent = visualColumn(editor, range.start.line, range.start.character);
       const blockHeight = (block.numLines + 2) * lineHeight;
       const cursorInside = isSelectionOrCursorInsideOffsets(block.startPos, block.endPos, normalizedText, editor.selections, document);
       const insetFrom = cursorInside ? 0 : blockHeight;

@@ -1,12 +1,12 @@
 import { randomBytes } from 'crypto';
-import { commands, Event, extensions, TextEditor, ViewColumn, Webview, WebviewOptions, workspace } from 'vscode';
+import { commands, Event, extensions, TextEditor, ViewColumn, Webview, WebviewOptions, window, workspace } from 'vscode';
 import { getEditorLineHeight } from '../mermaid/mermaid-renderer';
 import { logWarn } from '../logging';
 
 /**
  * Inset below 0-based `line`, `lines` tall, body shifted right by `indent` columns.
- * onHeight gets the body height in px when the zone does not follow it, onClick the `data-cell` of a double-clicked element,
- * onLink the `data-href` of a clicked link.
+ * onHeight gets the body height in px when the zone does not follow it, onZoneHeight the height the webview asks the
+ * zone for, onClick the `data-cell` of a double-clicked element, onLink the `data-href` of a clicked link.
  * A `data-visible-right` element in the body is capped to the editor's visible area inside the webview, since the
  * zone spans the editor's scroll width. onVisibleRight gets the new right edge in px when it moves over 4px.
  */
@@ -16,6 +16,7 @@ export type InsetSpec = {
   indent: number;
   body: string;
   onHeight?: (height: number) => void;
+  onZoneHeight?: (height: number) => void;
   onClick?: (cell: string) => void;
   onLink?: (href: string) => void;
   onVisibleRight?: (right: number) => void;
@@ -28,9 +29,16 @@ type WebviewEditorInset = { readonly webview: Webview; readonly onDidDispose: Ev
 type InsetHelperApi = {
   createInset(editor: TextEditor, line: number, height: number, options?: WebviewOptions): WebviewEditorInset;
 };
+/** missed: unanswered pings, undefined until the webview's first message. */
+type LiveInset = { inset: WebviewEditorInset; spec: InsetSpec; missed?: number };
+/** Insets of one editor, with the viewColumn and font they were created for. */
+type EditorEntry = { insets: Map<string, LiveInset>; viewColumn: ViewColumn | undefined; font: string };
+
+const PING_INTERVAL_MS = 1000;
+const MAX_MISSED_PINGS = 2;
 
 /**
- * Keyed webview insets for one editor at a time, created through the inset helper extension.
+ * Keyed webview insets per visible editor, created through the inset helper extension.
  * Unchanged keys keep their inset, so cursor moves don't flicker.
  * Wheel over an inset is forwarded to the editor as a fallback. It stalls once the inset scrolls away from
  * the pointer, since VS Code keeps routing the gesture to the inset iframe.
@@ -38,9 +46,9 @@ type InsetHelperApi = {
 export class EditorInsets {
   private failed = false;
   private activating = false;
-  private insets = new Map<string, WebviewEditorInset>();
-  private editor: TextEditor | undefined;
-  private viewColumn: ViewColumn | undefined;
+  private editors = new Map<TextEditor, EditorEntry>();
+  private pingTimer: ReturnType<typeof setInterval> | undefined;
+  private rerendered = new Set<string>();
 
   /** onChange re-renders callers: after the helper activates, or once insets fail and decorations take over. */
   constructor(private readonly onChange: () => void) {}
@@ -52,24 +60,32 @@ export class EditorInsets {
 
   sync(editor: TextEditor, wanted: Map<string, InsetSpec>): void {
     if (!this.supported) return;
-    // A moved editor group reparents the inset iframes, which reload blank
-    if (editor !== this.editor || editor.viewColumn !== this.viewColumn) {
-      this.dispose();
-      this.editor = editor;
-      this.viewColumn = editor.viewColumn;
+    for (const other of [...this.editors.keys()]) {
+      if (other !== editor && !window.visibleTextEditors.includes(other)) this.dispose(other);
     }
-    for (const [key, inset] of this.insets) {
+    const font = insetFont();
+    let entry = this.editors.get(editor);
+    // A moved editor group reparents the inset iframes, which reload blank. The html holds the font.
+    if (entry && (entry.viewColumn !== editor.viewColumn || entry.font !== font)) {
+      this.dispose(editor);
+      entry = undefined;
+    }
+    if (!entry) {
+      entry = { insets: new Map(), viewColumn: editor.viewColumn, font };
+      this.editors.set(editor, entry);
+    }
+    for (const [key, live] of entry.insets) {
       if (!wanted.has(key)) {
-        this.insets.delete(key);
-        inset.dispose();
+        entry.insets.delete(key);
+        live.inset.dispose();
       }
     }
     for (const [key, spec] of wanted) {
-      if (!this.insets.has(key) && !this.create(editor, key, spec)) return;
+      if (!entry.insets.has(key) && !this.create(editor, entry.insets, key, spec)) return;
     }
   }
 
-  private create(editor: TextEditor, key: string, spec: InsetSpec): boolean {
+  private create(editor: TextEditor, insets: Map<string, LiveInset>, key: string, spec: InsetSpec): boolean {
     const helper = extensions.getExtension<InsetHelperApi>(INSET_HELPER_ID);
     if (!helper) return false;
     if (!helper.isActive) {
@@ -79,6 +95,8 @@ export class EditorInsets {
       }
       return false;
     }
+    // The API throws for a hidden editor, which says nothing about insets support
+    if (!window.visibleTextEditors.includes(editor)) return false;
     let inset: WebviewEditorInset;
     try {
       // API takes a 0-based line and places the zone below it
@@ -88,9 +106,12 @@ export class EditorInsets {
       return false;
     }
     inset.webview.html = buildInsetHtml(spec);
+    const live: LiveInset = { inset, spec };
     let scroll_remainder = 0;
-    type InsetMessage = { delta?: number; height?: number; cell?: string; link?: string; visibleRight?: number };
+    type InsetMessage = { delta?: number; height?: number; zoneHeight?: number; cell?: string; link?: string; visibleRight?: number };
     inset.webview.onDidReceiveMessage((message: InsetMessage) => {
+      live.missed = 0;
+      if (message.zoneHeight !== undefined) return spec.onZoneHeight?.(message.zoneHeight);
       if (message.height !== undefined) return spec.onHeight?.(message.height);
       if (message.link !== undefined) return spec.onLink?.(message.link);
       if (message.visibleRight !== undefined) return spec.onVisibleRight?.(message.visibleRight);
@@ -104,10 +125,43 @@ export class EditorInsets {
       void commands.executeCommand('editorScroll', { to: lines > 0 ? 'down' : 'up', by: 'line', value: Math.abs(lines) });
     });
     inset.onDidDispose(() => {
-      if (this.insets.get(key) === inset) this.insets.delete(key);
+      if (insets.get(key) !== live) return;
+      insets.delete(key);
+      // Disposed by VS Code, not by sync: render once more while the editor shows
+      if (window.visibleTextEditors.includes(editor) && !this.rerendered.has(key)) {
+        this.rerendered.add(key);
+        this.onChange();
+      }
     });
-    this.insets.set(key, inset);
+    insets.set(key, live);
+    this.pingTimer ??= setInterval(() => this.ping(), PING_INTERVAL_MS);
     return true;
+  }
+
+  /**
+   * Recreates insets that stop answering pings. A new editor group or a closed one can rebuild the grid around
+   * the editor without changing its viewColumn. The reparented iframe reloads blank, VS Code never resends its html.
+   */
+  private ping(): void {
+    const entries = [...this.editors].filter(([, entry]) => entry.insets.size > 0);
+    if (entries.length === 0) {
+      clearInterval(this.pingTimer);
+      this.pingTimer = undefined;
+      return;
+    }
+    for (const [editor, { insets }] of entries) {
+      for (const [key, live] of [...insets]) {
+        if (live.missed === undefined) continue;
+        if (live.missed >= MAX_MISSED_PINGS) {
+          insets.delete(key);
+          live.inset.dispose();
+          if (!this.create(editor, insets, key, live.spec)) return;
+          continue;
+        }
+        live.missed++;
+        live.inset.webview.postMessage({ ping: true }).then(undefined, () => undefined);
+      }
+    }
   }
 
   private fail(error: unknown): void {
@@ -117,16 +171,24 @@ export class EditorInsets {
     this.onChange();
   }
 
-  dispose(): void {
-    const insets = [...this.insets.values()];
-    this.insets.clear();
-    for (const inset of insets) inset.dispose();
+  /** Disposes the insets of `editor`, or of every editor. */
+  dispose(editor?: TextEditor): void {
+    const editors = editor ? [editor] : [...this.editors.keys()];
+    for (const other of editors) {
+      const entry = this.editors.get(other);
+      this.editors.delete(other);
+      const insets = [...entry?.insets.values() ?? []];
+      // Emptied first, so onDidDispose tells these from insets VS Code disposed
+      entry?.insets.clear();
+      for (const live of insets) live.inset.dispose();
+    }
   }
 }
 
-/** Visual column of `character` on `line_text`, tabs expanded to editor.tabSize. */
-export function visualColumn(line_text: string, character: number): number {
-  const tab_size = workspace.getConfiguration('editor').get<number>('tabSize', 4);
+/** Visual column of `character` on 0-based `line`, tabs expanded to the editor's tab size. */
+export function visualColumn(editor: TextEditor, line: number, character: number): number {
+  const line_text = editor.document.lineAt(line).text;
+  const tab_size = Number(editor.options.tabSize) || 4;
   let column = 0;
   for (let i = 0; i < character && i < line_text.length; i++) {
     column = line_text[i] === '\t' ? column + tab_size - (column % tab_size) : column + 1;
@@ -134,14 +196,17 @@ export function visualColumn(line_text: string, character: number): number {
   return column;
 }
 
+/** Editor font as inline css, the ch unit in it matches editor columns. */
+function insetFont(): string {
+  const editor_config = workspace.getConfiguration('editor');
+  return `font-family: ${editor_config.get<string>('fontFamily', 'monospace').replace(/[<>"]/g, '')}; font-size: ${editor_config.get<number>('fontSize', 14)}px;`;
+}
+
 function buildInsetHtml(spec: InsetSpec): string {
   const nonce = randomBytes(16).toString('base64');
-  const editor_config = workspace.getConfiguration('editor');
-  // ch unit in the editor font matches editor columns
-  const font = `font-family: ${editor_config.get<string>('fontFamily', 'monospace').replace(/[<>"]/g, '')}; font-size: ${editor_config.get<number>('fontSize', 14)}px;`;
   return '<!DOCTYPE html><html><head>' +
     `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">` +
-    `</head><body style="margin: 0; padding: 0; overflow: hidden; ${font}">` +
+    `</head><body style="margin: 0; padding: 0; overflow: hidden; ${insetFont()}">` +
     `<div style="padding-left: ${spec.indent}ch;">${spec.body}</div>` +
     `<script nonce="${nonce}">
       const vscode = acquireVsCodeApi();
@@ -173,6 +238,7 @@ function buildInsetHtml(spec: InsetSpec): string {
       if (sized) vscode.postMessage({ zoneMouse: true });
       let anchor;
       addEventListener('message', event => {
+        if (event.data?.ping) return vscode.postMessage({ pong: true });
         const mouse = event.data?.zoneMouse;
         if (!mouse) return;
         const selection = getSelection();

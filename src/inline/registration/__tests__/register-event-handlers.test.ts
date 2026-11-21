@@ -26,7 +26,7 @@ describe('registerEventHandlers', () => {
 
     const disposables = registerEventHandlers(decorator as any, linkClickHandler as any);
 
-    expect(disposables).toHaveLength(9);
+    expect(disposables).toHaveLength(11);
   });
 
   it('routes editor and workspace events to the decorator', () => {
@@ -78,6 +78,7 @@ describe('registerEventHandlers', () => {
       recreateCodeBlockLanguageDecorationType: vi.fn(),
       recreateColorDependentTypes: vi.fn(),
       clearMathDecorationCache: vi.fn(),
+      tableCoordinator: { documentChanged: vi.fn(), enterTable: vi.fn(() => false) },
     };
 
     registerEventHandlers(decorator as any, { setEnabled: vi.fn() } as any);
@@ -183,18 +184,86 @@ describe('registerEventHandlers', () => {
     const background_editor = make_editor('/background.md');
     const active_editor = make_editor('/active.md');
     (vscode.window as any).visibleTextEditors = [background_editor, active_editor];
-    const decorator = { setActiveEditor: vi.fn(), updateDecorationsForDocument: vi.fn() };
+    const decorator = { redrawUnfocused: vi.fn(), updateDecorationsForDocument: vi.fn(), tableCoordinator: { documentChanged: vi.fn() } };
     registerEventHandlers(decorator as any, { setEnabled: vi.fn() } as any);
 
     (vscode.window as any).activeTextEditor = active_editor;
     change_listener!({ document: background_editor.document });
-    expect(decorator.setActiveEditor.mock.calls).toEqual([[background_editor], [active_editor]]);
-
-    decorator.setActiveEditor.mockClear();
-    (vscode.window as any).activeTextEditor = undefined;
-    change_listener!({ document: background_editor.document });
-    expect(decorator.setActiveEditor.mock.calls).toEqual([[background_editor]]);
+    expect(decorator.redrawUnfocused.mock.calls).toEqual([[[background_editor]]]);
     expect(decorator.updateDecorationsForDocument).not.toHaveBeenCalled();
+    change_listener!({ document: active_editor.document });
+    expect(decorator.updateDecorationsForDocument).toHaveBeenCalledOnce();
+    (vscode.window as any).visibleTextEditors = [];
+  });
+
+  it('redraws a background editor once its table rows show or hide', () => {
+    let range_listener: (event: { textEditor: vscode.TextEditor }) => void;
+    vscode.window.onDidChangeTextEditorVisibleRanges = vi.fn(listener => {
+      range_listener = listener;
+      return { dispose: vi.fn() };
+    }) as any;
+    const make_editor = (name: string) => new (vscode.TextEditor as any)(
+      new (vscode.TextDocument as any)(vscode.Uri.file(name), 'markdown', 2, '# Title'), []);
+    const background_editor = make_editor('/background.md');
+    const active_editor = make_editor('/active.md');
+    const tableCoordinator = { rowsShownChanged: vi.fn(() => true), refold: vi.fn() };
+    const decorator = { redrawUnfocused: vi.fn(), tableCoordinator };
+    registerEventHandlers(decorator as any, { setEnabled: vi.fn() } as any);
+
+    (vscode.window as any).activeTextEditor = active_editor;
+    range_listener!({ textEditor: active_editor });
+    expect(tableCoordinator.rowsShownChanged).not.toHaveBeenCalled();
+    range_listener!({ textEditor: background_editor });
+    expect(decorator.redrawUnfocused.mock.calls).toEqual([[[background_editor]]]);
+
+    decorator.redrawUnfocused.mockClear();
+    tableCoordinator.rowsShownChanged.mockReturnValue(false);
+    range_listener!({ textEditor: background_editor });
+    expect(decorator.redrawUnfocused).not.toHaveBeenCalled();
+    expect(tableCoordinator.refold).toHaveBeenCalledTimes(3);
+  });
+
+  it('clears an editor whose document stops being markdown and redraws it on change back', () => {
+    let open_listener: (document: vscode.TextDocument) => void;
+    vscode.workspace.onDidOpenTextDocument = vi.fn(listener => {
+      open_listener = listener;
+      return { dispose: vi.fn() };
+    }) as any;
+    const document = new (vscode.TextDocument as any)(vscode.Uri.file('/lang.md'), 'plaintext', 1, '# Title');
+    const editor = new (vscode.TextEditor as any)(document, []);
+    (vscode.window as any).visibleTextEditors = [editor];
+    (vscode.window as any).activeTextEditor = editor;
+    const decorator = { clearAllDecorations: vi.fn(), updateDecorationsForSelection: vi.fn() };
+    registerEventHandlers(decorator as any, { setEnabled: vi.fn() } as any);
+
+    open_listener!(document);
+    expect(decorator.clearAllDecorations).toHaveBeenCalledWith(editor);
+    document.languageId = 'markdown';
+    open_listener!(document);
+    expect(decorator.updateDecorationsForSelection).toHaveBeenCalledOnce();
+    (vscode.window as any).visibleTextEditors = [];
+  });
+
+  it('redraws markdown editors that show without becoming active', () => {
+    let visible_listener: (editors: vscode.TextEditor[]) => void;
+    vscode.window.onDidChangeVisibleTextEditors = vi.fn(listener => {
+      visible_listener = listener;
+      return { dispose: vi.fn() };
+    }) as any;
+    const make_editor = (name: string, language: string) => new (vscode.TextEditor as any)(
+      new (vscode.TextDocument as any)(vscode.Uri.file(name), language, 1, '# Title'), []);
+    const active_editor = make_editor('/active.md', 'markdown');
+    const shown_editor = make_editor('/shown.md', 'markdown');
+    const text_editor = make_editor('/shown.txt', 'plaintext');
+    (vscode.window as any).visibleTextEditors = [active_editor];
+    (vscode.window as any).activeTextEditor = active_editor;
+    const decorator = { redrawUnfocused: vi.fn() };
+    registerEventHandlers(decorator as any, { setEnabled: vi.fn() } as any);
+
+    visible_listener!([active_editor, shown_editor, text_editor]);
+    expect(decorator.redrawUnfocused.mock.calls).toEqual([[[shown_editor]]]);
+    visible_listener!([active_editor, shown_editor]);
+    expect(decorator.redrawUnfocused).toHaveBeenCalledOnce();
     (vscode.window as any).visibleTextEditors = [];
   });
 

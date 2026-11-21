@@ -2,14 +2,25 @@ import * as vscode from 'vscode';
 import { config } from '../config';
 import { Decorator } from '../decorator';
 import { LinkClickHandler } from '../link-click-handler';
+import { isSupportedMarkdownLanguage } from '../language-support';
 
 export function registerEventHandlers(
   decorator: Decorator,
   linkClickHandler: LinkClickHandler
 ): vscode.Disposable[] {
+  let visibleEditors = new Set(vscode.window.visibleTextEditors);
   return [
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       decorator.setActiveEditor(editor);
+    }),
+    // A markdown editor can show without ever becoming active, e.g. once a webview tab above it moves away
+    vscode.window.onDidChangeVisibleTextEditors((editors) => {
+      const shown = editors.filter(editor => !visibleEditors.has(editor) && editor !== vscode.window.activeTextEditor &&
+        isSupportedMarkdownLanguage(editor.document.languageId));
+      visibleEditors = new Set(editors);
+      if (shown.length > 0) {
+        decorator.redrawUnfocused(shown);
+      }
     }),
     // Re-renders insets, see EditorInsets.sync
     vscode.window.onDidChangeTextEditorViewColumn(() => {
@@ -17,30 +28,46 @@ export function registerEventHandlers(
     }),
     // Fires on fold and unfold too, see TableUpdateCoordinator.refold
     vscode.window.onDidChangeTextEditorVisibleRanges((event) => {
+      // An external write unfolds table rows after its document change event
+      if (event.textEditor !== vscode.window.activeTextEditor && decorator.tableCoordinator.rowsShownChanged(event.textEditor)) {
+        decorator.redrawUnfocused([event.textEditor]);
+      }
       decorator.tableCoordinator.refold(event.textEditor);
     }),
     vscode.window.onDidChangeTextEditorSelection((event) => {
+      if (decorator.tableCoordinator.enterTable(event)) {
+        return;
+      }
       decorator.updateDecorationsForSelection(event.kind);
     }),
     vscode.workspace.onDidChangeTextDocument((event) => {
-      const activeEditor = vscode.window.activeTextEditor;
-      if (event.document === activeEditor?.document) {
+      decorator.tableCoordinator.documentChanged(event);
+      // Debounced, then redraws the document's other editors too
+      if (event.document === vscode.window.activeTextEditor?.document) {
         decorator.updateDecorationsForDocument(event);
         return;
       }
       // Unfocused edits, e.g. by an agent, would leave VS Code shifting the old ranges into wrong text
-      const visibleEditor = vscode.window.visibleTextEditors.find(editor => editor.document === event.document);
-      if (!visibleEditor) {
-        return;
-      }
-      decorator.setActiveEditor(visibleEditor);
-      if (activeEditor) {
-        decorator.setActiveEditor(activeEditor);
+      const editors = vscode.window.visibleTextEditors.filter(editor => editor.document === event.document);
+      if (editors.length > 0) {
+        decorator.redrawUnfocused(editors);
       }
     }),
     // A reopened document restarts at version 1, so a cached parse of the old text would match
     vscode.workspace.onDidCloseTextDocument((document) => {
       decorator.clearCache(document.uri.toString());
+    }),
+    // Fires on a language change too, the decorator skips non-markdown documents
+    vscode.workspace.onDidOpenTextDocument((document) => {
+      for (const editor of vscode.window.visibleTextEditors.filter(visible => visible.document === document)) {
+        if (!isSupportedMarkdownLanguage(document.languageId)) {
+          decorator.clearAllDecorations(editor);
+        } else if (editor === vscode.window.activeTextEditor) {
+          decorator.updateDecorationsForSelection();
+        } else {
+          decorator.redrawUnfocused([editor]);
+        }
+      }
     }),
     vscode.workspace.onDidRenameFiles((event) => {
       for (const { oldUri, newUri } of event.files) {
@@ -83,7 +110,13 @@ export function registerEventHandlers(
         decorator.recreateColorDependentTypes();
       }
 
-      if (event.affectsConfiguration('editor.fontSize') || event.affectsConfiguration('editor.lineHeight')) {
+      // Tables render only with provider folding, see TableUpdateCoordinator.getRenderedTables
+      if (event.affectsConfiguration('editor.folding') || event.affectsConfiguration('editor.foldingStrategy')) {
+        decorator.updateDecorationsForSelection();
+      }
+
+      if (event.affectsConfiguration('editor.fontSize') || event.affectsConfiguration('editor.fontFamily') ||
+        event.affectsConfiguration('editor.lineHeight')) {
         decorator.clearMathDecorationCache();
       }
     }),

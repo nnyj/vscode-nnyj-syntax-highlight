@@ -4,20 +4,20 @@
 
 ## Ownership
 
-| Path | Responsibility |
-|------|----------------|
-| `src/extension.js` | Custom styling registration and inline renderer enable/disable |
-| `syntaxes/` | TextMate syntax colors |
-| `src/indented_table.js` | Table row borders |
-| `src/shell_comment.js` | Shell comment colors |
-| `src/preview_highlight.js`, `preview/preview.css` | Markdown preview colors |
-| `src/notebook_preview.js` | Notebook Markdown cell colors |
-| `src/inline/parser/` | Markdown recognition and normalized decoration offsets |
-| `src/inline/decorator/visibility-model.ts` | Rendered, faint, and raw syntax states |
-| `src/inline/decorations.ts` | Decoration appearance |
-| `src/inline/decorator/decoration-type-registry.ts` | Decoration type ownership and disposal |
-| `src/inline/registration/` | Events and providers |
-| `src/inline/link-interactions/shared.ts` | Shared link, hover, and click target resolution |
+| Path                                               | Responsibility                                                 |
+| -------------------------------------------------- | -------------------------------------------------------------- |
+| `src/extension.js`                                 | Custom styling registration and inline renderer enable/disable |
+| `syntaxes/`                                        | TextMate syntax colors                                         |
+| `src/indented_table.js`                            | Table row borders                                              |
+| `src/shell_comment.js`                             | Shell comment colors                                           |
+| `src/preview_highlight.js`, `preview/preview.css`  | Markdown preview colors                                        |
+| `src/notebook_preview.js`                          | Notebook Markdown cell colors                                  |
+| `src/inline/parser/`                               | Markdown recognition and normalized decoration offsets         |
+| `src/inline/decorator/visibility-model.ts`         | Rendered, faint, and raw syntax states                         |
+| `src/inline/decorations.ts`                        | Decoration appearance                                          |
+| `src/inline/decorator/decoration-type-registry.ts` | Decoration type ownership and disposal                         |
+| `src/inline/registration/`                         | Events and providers                                           |
+| `src/inline/link-interactions/shared.ts`           | Shared link, hover, and click target resolution                |
 
 ## Parsing and positions
 
@@ -37,8 +37,23 @@
 
 - `src/inline/decorator/editor_insets.ts` creates insets through `nnyj.nnyj-inset-helper` (`inset_helper/`), the only package declaring `enabledApiProposals`.
 - Helper missing, or `argv.json` lacking `"enable-proposed-api": ["nnyj.nnyj-inset-helper"]`: renderers fall back to decorations.
+- Inset lifecycle:
+  - Keys hold the line. VS Code moves a zone on edits above, then puts it back at its creation line on the next fold or wrap change.
+  - A new or closed editor group can reparent an editor's DOM. Its inset iframes reload blank, VS Code does not resend the html.
+  - `EditorInsets` pings each inset every second and recreates an inset that misses 2 pings.
+  - An inset disposed by VS Code triggers one more render per key while its editor shows.
+  - A wheel gesture stays routed to the inset iframe after it scrolls away from the pointer. Insets forward wheel events, which stalls.
+
+- Table folds, no fold state API, `visibleRanges` is the only signal:
+  - `editor.fold` reaches only the focused code editor widget, e.g. the Debug Console input, else the active editor.
+  - Background editor: a table whose rows show stays source until the editor is active, e.g. after an external write.
+  - Missed fold: retries once, then the table stays source until the next edit, cursor move or range request.
+  - VS Code restores saved folds after the first render and keeps a collapsed range after an edit breaks the table. Both unfold once the viewport shows them folded.
+  - Clear and dispose unfold only the active editor.
+  - Entering a table unfolds its rows, which can scroll the cursor away, so the cursor is revealed after.
+
+- Background editors render through `Decorator.redrawUnfocused`. Mermaid render tokens are per editor, so these renders keep the active editor's render.
 - Mermaid decorations use one SVG slice per code block line, a single tall image vanishes once its first line scrolls off.
-- A wheel gesture stays routed to the inset iframe after it scrolls away from the pointer. Insets forward wheel events, which stalls.
 
 ## Mermaid
 

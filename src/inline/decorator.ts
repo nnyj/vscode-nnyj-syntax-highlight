@@ -121,7 +121,6 @@ export class Decorator {
    */
   setActiveEditor(textEditor: TextEditor | undefined) {
     this.updateScheduler.cancel();
-    this.mermaidCoordinator.cancel();
     this.activeEditor = textEditor;
 
     if (!textEditor) {
@@ -188,7 +187,21 @@ export class Decorator {
     }
     this.updateScheduler.schedule(document, () => {
       this.updateDecorationsInternal();
+      const others = window.visibleTextEditors.filter(editor => editor.document === document && editor !== this.activeEditor);
+      if (others.length > 0) this.redrawUnfocused(others);
     });
+  }
+
+  /**
+   * Renders editors other than the active one, e.g. a split of the edited document, through the active editor path.
+   * With no active editor the last one stays current, so async results such as loaded images still reach it.
+   */
+  redrawUnfocused(editors: readonly TextEditor[]): void {
+    for (const editor of editors) {
+      this.activeEditor = editor;
+      this.updateDecorationsForSelection();
+    }
+    this.activeEditor = window.activeTextEditor ?? this.activeEditor;
   }
 
   /**
@@ -259,24 +272,24 @@ export class Decorator {
    * 
    * @private
    */
-  private clearAllDecorations(): void {
-    this.mermaidCoordinator.cancel();
-    if (!this.activeEditor) {
+  clearAllDecorations(editor = this.activeEditor): void {
+    if (!editor) {
       return;
     }
+    this.mermaidCoordinator.cancel(editor);
 
     // Set all decoration types to empty arrays
     for (const decorationType of this.decorationTypes.getMap().values()) {
-      this.activeEditor.setDecorations(decorationType, []);
+      editor.setDecorations(decorationType, []);
     }
-    
+
     // Also clear ghost faint decoration (not in decorationTypeMap)
-    this.activeEditor.setDecorations(this.decorationTypes.getGhostFaintDecorationType(), []);
-    this.mermaidCoordinator.clear(this.activeEditor);
-    this.imageCoordinator.clear(this.activeEditor);
-    this.tableCoordinator.clear(this.activeEditor);
-    this.mathDecorations.clear(this.activeEditor);
-    this.activeEditor.setDecorations(this.mermaidHoverIndicatorDecorationType, []);
+    editor.setDecorations(this.decorationTypes.getGhostFaintDecorationType(), []);
+    this.mermaidCoordinator.clear(editor);
+    this.imageCoordinator.clear(editor);
+    this.tableCoordinator.clear(editor);
+    this.mathDecorations.clear(editor);
+    editor.setDecorations(this.mermaidHoverIndicatorDecorationType, []);
   }
 
   /**
