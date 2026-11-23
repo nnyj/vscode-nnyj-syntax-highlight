@@ -29,7 +29,7 @@ const UNKNOWN_SIZE_INSET_LINES = 10;
 
 /**
  * Renders standalone Markdown images inline.
- * Inset mode (inset helper extension installed and enabled): webview zone below the image line pushes text down.
+ * Inset mode (workbench patch extension installed and enabled): webview zone below the image line pushes text down.
  * Fallback: Mermaid-style decoration, height = covered lines × line height, blank lines below enlarge it.
  * Rendering is synchronous from cache; uncached images load async, then onLoaded re-runs the update.
  */

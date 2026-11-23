@@ -22,11 +22,11 @@ export type InsetSpec = {
   onVisibleRight?: (right: number) => void;
 };
 
-/** Companion extension in inset_helper/, wraps the proposed editorInsets API that the Marketplace rejects. */
-const INSET_HELPER_ID = 'nnyj.nnyj-inset-helper';
+/** Companion extension in workbench_patch/, wraps the proposed editorInsets API that the Marketplace rejects. */
+const WORKBENCH_PATCH_ID = 'nnyj.nnyj-workbench-patch';
 
 type WebviewEditorInset = { readonly webview: Webview; readonly onDidDispose: Event<void>; dispose(): void };
-type InsetHelperApi = {
+type WorkbenchPatchApi = {
   createInset(editor: TextEditor, line: number, height: number, options?: WebviewOptions): WebviewEditorInset;
 };
 /** missed: unanswered pings, undefined until the webview's first message. */
@@ -38,7 +38,7 @@ const PING_INTERVAL_MS = 1000;
 const MAX_MISSED_PINGS = 2;
 
 /**
- * Keyed webview insets per visible editor, created through the inset helper extension.
+ * Keyed webview insets per visible editor, created through the workbench patch extension.
  * Unchanged keys keep their inset, so cursor moves don't flicker.
  * Wheel over an inset is forwarded to the editor as a fallback. It stalls once the inset scrolls away from
  * the pointer, since VS Code keeps routing the gesture to the inset iframe.
@@ -50,12 +50,12 @@ export class EditorInsets {
   private pingTimer: ReturnType<typeof setInterval> | undefined;
   private rerendered = new Set<string>();
 
-  /** onChange re-renders callers: after the helper activates, or once insets fail and decorations take over. */
+  /** onChange re-renders callers: after the workbench patch extension activates, or once insets fail and decorations take over. */
   constructor(private readonly onChange: () => void) {}
 
-  /** Helper installed and not failed. Callers render with insets, otherwise with decorations. */
+  /** Workbench patch extension installed and not failed. Callers render with insets, otherwise with decorations. */
   get supported(): boolean {
-    return !this.failed && !!extensions.getExtension(INSET_HELPER_ID);
+    return !this.failed && !!extensions.getExtension(WORKBENCH_PATCH_ID);
   }
 
   sync(editor: TextEditor, wanted: Map<string, InsetSpec>): void {
@@ -86,12 +86,12 @@ export class EditorInsets {
   }
 
   private create(editor: TextEditor, insets: Map<string, LiveInset>, key: string, spec: InsetSpec): boolean {
-    const helper = extensions.getExtension<InsetHelperApi>(INSET_HELPER_ID);
-    if (!helper) return false;
-    if (!helper.isActive) {
+    const patch_extension = extensions.getExtension<WorkbenchPatchApi>(WORKBENCH_PATCH_ID);
+    if (!patch_extension) return false;
+    if (!patch_extension.isActive) {
       if (!this.activating) {
         this.activating = true;
-        helper.activate().then(() => this.onChange(), error => this.fail(error));
+        patch_extension.activate().then(() => this.onChange(), error => this.fail(error));
       }
       return false;
     }
@@ -100,7 +100,7 @@ export class EditorInsets {
     let inset: WebviewEditorInset;
     try {
       // API takes a 0-based line and places the zone below it
-      inset = helper.exports.createInset(editor, spec.line, spec.lines, { enableScripts: true });
+      inset = patch_extension.exports.createInset(editor, spec.line, spec.lines, { enableScripts: true });
     } catch (error) {
       this.fail(error);
       return false;
@@ -165,7 +165,7 @@ export class EditorInsets {
   }
 
   private fail(error: unknown): void {
-    logWarn(`Editor insets unavailable, falling back to decorations. Add "enable-proposed-api": ["${INSET_HELPER_ID}"] to argv.json`, error);
+    logWarn(`Editor insets unavailable, falling back to decorations. Add "enable-proposed-api": ["${WORKBENCH_PATCH_ID}"] to argv.json`, error);
     this.failed = true;
     this.dispose();
     this.onChange();

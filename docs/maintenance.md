@@ -35,8 +35,8 @@
 
 ## Insets
 
-- `src/inline/decorator/editor_insets.ts` creates insets through `nnyj.nnyj-inset-helper` (`inset_helper/`), the only package declaring `enabledApiProposals`.
-- Helper missing, or `argv.json` lacking `"enable-proposed-api": ["nnyj.nnyj-inset-helper"]`: renderers fall back to decorations.
+- `src/inline/decorator/editor_insets.ts` creates insets through `nnyj.nnyj-workbench-patch` (`workbench_patch/`), the only package declaring `enabledApiProposals`.
+- Workbench patch extension missing, or `argv.json` lacking `"enable-proposed-api": ["nnyj.nnyj-workbench-patch"]`: renderers fall back to decorations.
 - Inset lifecycle:
   - Keys hold the line. VS Code moves a zone on edits above, then puts it back at its creation line on the next fold or wrap change.
   - A new or closed editor group can reparent an editor's DOM. Its inset iframes reload blank, VS Code does not resend the html.

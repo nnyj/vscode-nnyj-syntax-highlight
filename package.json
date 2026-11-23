@@ -344,7 +344,8 @@
     "vscode:prepublish": "npm run build",
     "package": "vsce package",
     "install:local": "node scripts/vsix_install.js",
-    "package:helper": "cd inset_helper && vsce package --skip-license --out ..",
+    "package:patch": "cd workbench_patch && vsce package --skip-license --out ..",
+    "install:patch": "cd workbench_patch && vsce package --skip-license --out ../nnyj-workbench-patch.vsix && code --install-extension ../nnyj-workbench-patch.vsix --force",
     "test": "vitest run"
   },
   "devDependencies": {

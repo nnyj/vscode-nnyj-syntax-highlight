@@ -107,7 +107,7 @@ function cropSvg(sized: SizedSvg, from: number, height: number): string {
 
 /**
  * Renders Mermaid blocks.
- * Inset mode (inset helper extension installed and enabled): the natural-size diagram covers the code block lines,
+ * Inset mode (workbench patch extension installed and enabled): the natural-size diagram covers the code block lines,
  * overflow continues in an inset below the closing fence, pushing text down.
  * An empty cursor inside the block shows raw code, with the full diagram in the inset as a live preview.
  * Fallback: diagram squeezed into the code block lines.

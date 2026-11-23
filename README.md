@@ -19,9 +19,9 @@ Custom Markdown and Terraform syntax colors with inline Markdown rendering in th
 
 - Headings, emphasis, links, lists, tables, code, images, math, and Mermaid use editor decorations.
 - Images alone on their line render inline, local files reload on change.
-- With the [inset helper](inset_helper/README.md) installed, images and Mermaid diagrams render full size in a box below their lines, pushing text down.
-- Without the helper, images are drawn over their line and the blank lines below it, Mermaid diagrams are fitted into their code block lines.
-- With the helper, tables outside the cursor render as wrapped HTML below their header line, with the rows folded. Moving the cursor into a table or double-clicking a cell shows the source.
+- With the [workbench patch extension](workbench_patch/README.md) installed, images and Mermaid diagrams render full size in a box below their lines, pushing text down.
+- Without it, images are drawn over their line and the blank lines below it, Mermaid diagrams are fitted into their code block lines.
+- With it, tables outside the cursor render as wrapped HTML below their header line, with the rows folded. Moving the cursor into a table or double-clicking a cell shows the source.
 - Fenced code blocks get a background from the fence column to the right edge, wrapped rows included. Fence lines stay visible and uncolored, so adjacent blocks stay apart.
 - Clicking `⎘` after a code block's opening fence copies its content without the fence indent.
 - Markdown markers appear while editing their content.
@@ -108,7 +108,8 @@ npm run install:local
 - Packaging runs the build automatically.
 - `npm version patch --no-git-tag-version` bumps `package.json` and the lockfile.
 - `npm run install:local` packages `nnyj-syntax-highlight-<version>.vsix`, deletes older vsix files, and installs it.
-- `npm run package:helper` packages [inset_helper/](inset_helper/README.md), a separate vsix wrapping the proposed `editorInsets` API. Only the main extension goes to the Marketplace, it rejects proposed APIs.
+- `npm run package:patch` packages [workbench_patch/](workbench_patch/README.md), a separate vsix wrapping the proposed `editorInsets` API. Only the main extension goes to the Marketplace, it rejects proposed APIs.
+- `npm run install:patch` packages and installs that vsix.
 
 ## License
 

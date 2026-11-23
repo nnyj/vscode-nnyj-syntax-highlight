@@ -55,7 +55,7 @@ export class TableFoldingProvider implements FoldingRangeProvider {
  * Shows tables with wrapped cells as an html inset below the header line, Obsidian style.
  * Rows below the header are folded and the header line's text is hidden, so only the inset shows.
  * An empty cursor in the table, or a click on a cell, unfolds the table for editing with the normal decorations.
- * Needs the inset helper and provider-based folding, else tables keep the decoration rendering.
+ * Needs the workbench patch extension and provider-based folding, else tables keep the decoration rendering.
  */
 export class TableUpdateCoordinator {
   readonly foldingProvider: TableFoldingProvider;

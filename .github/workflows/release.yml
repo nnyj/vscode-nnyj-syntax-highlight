@@ -27,7 +27,7 @@ jobs:
           npm ci
           npm test
           npm run package
-          npm run package:helper
+          npm run package:patch
 
       - name: Create release
         env:
