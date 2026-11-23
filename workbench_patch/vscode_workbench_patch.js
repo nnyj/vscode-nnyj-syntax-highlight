@@ -13,6 +13,7 @@ const workbench_rel = path.join("out", "vs", "workbench", "workbench.desktop.mai
 const checksum_key = "vs/workbench/workbench.desktop.main.js"
 const pointer_none = 'this.domNode.style.pointerEvents="none",'
 const pipe_test = "/^\\s*\\|/.test("
+const table_region_test = 'this.editor.getModel().getLanguageId()==="markdown"'
 
 const patches = [
   {
@@ -51,6 +52,17 @@ const patches = [
     re: /(this\.invoke\(\w+,\w+,\w+,(\w+),\w+\);let (\w+)=\w+\.getSelection\(\);\3&&)(\w+\.reveal\(\3\.getStartPosition\(\)\))/g,
     marker: "selectionLines&&",
     replace: (_, head, args, _selection, tail) => `${head}!${args}?.selectionLines&&${tail}`,
+  },
+  {
+    // Alt+click on a fold arrow unfolds the other folded regions, and folds the other regions only when none is folded.
+    // nnyj-syntax-highlight keeps every rendered table folded, so the click never folded. Markdown table regions
+    // are left out of the other regions, the click then neither counts nor toggles them.
+    // Anchored on FoldingController.onEditorMouseUp, the altKey filter for surrounding regions.
+    name: "fold others skips tables",
+    re: /(let \w+=(\w+)=>!\2\.containedBy\((\w+)\)&&!\3\.containedBy\(\2\))(,\w+=\w+\.getRegionsInside\(null,\w+\))/g,
+    marker: table_region_test,
+    replace: (_, head, region, _clicked, tail) =>
+      `${head}&&!(${table_region_test}&&${pipe_test}this.editor.getModel().getLineContent(${region}.startLineNumber)))${tail}`,
   },
 ]
 

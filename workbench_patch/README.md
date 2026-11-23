@@ -12,7 +12,7 @@ It wraps the proposed `editorInsets` API, which the Marketplace rejects, so it s
 
 ## Workbench patch
 
-- `vscode_workbench_patch.js` patches the workbench bundle: inset scroll, table no-wrap, inset resize, fold no reveal.
+- `vscode_workbench_patch.js` patches the workbench bundle: inset scroll, table no-wrap, inset resize, fold no reveal, fold others skips tables.
 - Run by hand: `node vscode_workbench_patch.js [install dir]`, then quit and reopen VS Code.
 - Restore: copy the `.bak` files over `workbench.desktop.main.js` and `product.json`.
 
