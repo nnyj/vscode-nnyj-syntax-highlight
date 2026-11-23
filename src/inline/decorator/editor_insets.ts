@@ -185,6 +185,24 @@ export class EditorInsets {
   }
 }
 
+/**
+ * Blocks shown as source instead of their inset, by start line. Only empty cursors open or close a block: a non-empty
+ * selection, e.g. a mouse drag, Shift+arrow or Ctrl+A, keeps the last state, so selecting never changes line heights.
+ */
+export class OpenBlocks {
+  private open = new WeakMap<TextEditor, Set<number>>();
+
+  get(editor: TextEditor, blocks: readonly { startLine: number; endLine: number }[]): Set<number> {
+    const kept = this.open.get(editor);
+    if (kept && editor.selections.some(selection => !selection.isEmpty)) return kept;
+    const lines = editor.selections.map(selection => selection.active.line);
+    const next = new Set(blocks.filter(block => lines.some(line => line >= block.startLine && line <= block.endLine))
+      .map(block => block.startLine));
+    this.open.set(editor, next);
+    return next;
+  }
+}
+
 /** Visual column of `character` on 0-based `line`, tabs expanded to the editor's tab size. */
 export function visualColumn(editor: TextEditor, line: number, character: number): number {
   const line_text = editor.document.lineAt(line).text;

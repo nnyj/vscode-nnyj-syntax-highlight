@@ -5,7 +5,7 @@ import type { TableBlock } from '../parser';
 import type { MarkdownParseCache } from '../markdown-parse-cache';
 import { cellLevels, LEVEL_COLORS } from '../parser/table_levels';
 import { getEditorLineHeight } from '../mermaid/mermaid-renderer';
-import { EditorInsets, InsetSpec, visualColumn } from './editor_insets';
+import { EditorInsets, InsetSpec, OpenBlocks, visualColumn } from './editor_insets';
 import { resolveLinkTarget } from '../link-targets';
 import { logWarn } from '../logging';
 
@@ -54,7 +54,7 @@ export class TableFoldingProvider implements FoldingRangeProvider {
 /**
  * Shows tables with wrapped cells as an html inset below the header line, Obsidian style.
  * Rows below the header are folded and the header line's text is hidden, so only the inset shows.
- * Cursor in the table, or a click on a cell, unfolds the table for editing with the normal decorations.
+ * An empty cursor in the table, or a click on a cell, unfolds the table for editing with the normal decorations.
  * Needs the inset helper and provider-based folding, else tables keep the decoration rendering.
  */
 export class TableUpdateCoordinator {
@@ -73,6 +73,7 @@ export class TableUpdateCoordinator {
   private foldStarts = new Map<TextEditor, number[]>();
   /** Start lines of tables shown as source after their fold missed twice, until the editor state changes. */
   private missedFolds = new Map<TextEditor, { state: string; lines: number[] }>();
+  private readonly openBlocks = new OpenBlocks();
   private readonly hideHeader = window.createTextEditorDecorationType({ opacity: '0' });
 
   constructor(private readonly parseCache: MarkdownParseCache, private readonly onChange: () => void) {
@@ -94,22 +95,23 @@ export class TableUpdateCoordinator {
     const missed = this.missedFolds.get(editor);
     if (missed && missed.state !== editorState(editor)) this.missedFolds.delete(editor);
     const source = this.missedFolds.get(editor)?.lines ?? [];
+    const open = this.openBlocks.get(editor, tableBlocks);
     return tableBlocks.filter(block => block.endLine > block.startLine && !shown.includes(block) && !source.includes(block.startLine) &&
-      !editor.selections.some(selection => selection.start.line <= block.endLine && selection.end.line >= block.startLine));
+      !open.has(block.startLine));
   }
 
   /**
    * Keyboard moves that skip folded table rows. ArrowUp from the line below a rendered table lands on its header,
    * where the fold starts: moves on to the last row. ArrowDown from a header whose rows are not unfolded yet lands
-   * below the table: moves back to the first row. A Shift selection keeps its anchor. True when it moved the cursor,
-   * the next selection event renders.
+   * below the table: moves back to the first row. A Shift selection skips the folded rows as one line, so the table
+   * stays folded. True when it moved the cursor, the next selection event renders.
    */
   enterTable(event: TextEditorSelectionChangeEvent): boolean {
     const editor = event.textEditor;
     const previous = this.lastActive.get(editor);
     const selection = event.selections[0];
     this.lastActive.set(editor, selection.active);
-    if (event.kind !== TextEditorSelectionChangeKind.Keyboard || event.selections.length !== 1 || !previous) return false;
+    if (event.kind !== TextEditorSelectionChangeKind.Keyboard || event.selections.length !== 1 || !selection.isEmpty || !previous) return false;
     const line = selection.active.line;
     const folded = this.folded.get(editor);
     const fromBelow = folded?.version === editor.document.version
@@ -120,7 +122,7 @@ export class TableUpdateCoordinator {
     const targetLine = fromBelow ? fromBelow.endLine : fromHeader ? fromHeader.startLine + 1 : undefined;
     if (targetLine === undefined) return false;
     const target = new Position(targetLine, Math.min(previous.character, editor.document.lineAt(targetLine).text.length));
-    editor.selection = new Selection(selection.isEmpty ? target : selection.anchor, target);
+    editor.selection = new Selection(target, target);
     return true;
   }
 

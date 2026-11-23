@@ -15,7 +15,7 @@ import { processSvg } from '../mermaid/svg-processor';
 import { LRUCache } from '../utils/lru-cache';
 import { MermaidDiagramDecorations } from './mermaid-diagram-decorations';
 import { createRange, isSelectionOrCursorInsideOffsets } from './editor-decoration-applier';
-import { EditorInsets, InsetSpec, visualColumn } from './editor_insets';
+import { EditorInsets, InsetSpec, OpenBlocks, visualColumn } from './editor_insets';
 import { logWarn } from '../logging';
 
 type MermaidBlockKeyCacheEntry = {
@@ -109,7 +109,7 @@ function cropSvg(sized: SizedSvg, from: number, height: number): string {
  * Renders Mermaid blocks.
  * Inset mode (inset helper extension installed and enabled): the natural-size diagram covers the code block lines,
  * overflow continues in an inset below the closing fence, pushing text down.
- * Cursor inside the block shows raw code, with the full diagram in the inset as a live preview.
+ * An empty cursor inside the block shows raw code, with the full diagram in the inset as a live preview.
  * Fallback: diagram squeezed into the code block lines.
  */
 export class MermaidUpdateCoordinator {
@@ -117,6 +117,7 @@ export class MermaidUpdateCoordinator {
   private updateTokens = new WeakMap<TextEditor, number>();
   private nextToken = 0;
   private readonly insets: EditorInsets;
+  private readonly openBlocks = new OpenBlocks();
   private readonly naturalSvgCache = new LRUCache<string, Promise<string>>(50);
 
   /** Drops pending renders of `editor`, or of every editor. */
@@ -270,6 +271,10 @@ export class MermaidUpdateCoordinator {
     const rangesByKey = new Map<string, Range[]>();
     const dataUrisByKey = new Map<string, string>();
     const wantedInsets = new Map<string, InsetSpec>();
+    const open = this.openBlocks.get(editor, mermaidBlocks.flatMap(block => {
+      const range = createRange(editor, block.startPos, block.endPos, normalizedText);
+      return range ? [{ startLine: range.start.line, endLine: range.end.line }] : [];
+    }));
 
     await mapWithConcurrency(mermaidBlocks, this.maxConcurrency, async (block) => {
       if (isStale()) return;
@@ -292,7 +297,7 @@ export class MermaidUpdateCoordinator {
       const fenceEndLine = document.positionAt(mapNormalizedToOriginal(block.endPos - 1, normalizedText)).line;
       const indent = visualColumn(editor, range.start.line, range.start.character);
       const blockHeight = (block.numLines + 2) * lineHeight;
-      const cursorInside = isSelectionOrCursorInsideOffsets(block.startPos, block.endPos, normalizedText, editor.selections, document);
+      const cursorInside = open.has(range.start.line);
       const insetFrom = cursorInside ? 0 : blockHeight;
 
       if (!cursorInside) {

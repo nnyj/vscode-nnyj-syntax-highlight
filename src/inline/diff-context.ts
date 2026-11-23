@@ -9,6 +9,8 @@ export function isDiffLikeUri(uri: Uri): boolean {
 
 export function is_diff_editor(editor: TextEditor): boolean {
   if (isDiffLikeUri(editor.document.uri)) return true;
+  // Diff sides opened by git and the multi diff editor are embedded editors, which have no viewColumn
+  if (editor.viewColumn === undefined) return true;
   const group = window.tabGroups?.all.find(group => group.viewColumn === editor.viewColumn);
   const input = group?.activeTab?.input;
   if (!(input instanceof TabInputTextDiff)) return false;

@@ -31,6 +31,11 @@ describe('diff detection', () => {
     expect(is_diff_editor(normal_editor as any)).toBe(false);
   });
 
+  it('treats an embedded editor without a viewColumn as a diff side', () => {
+    const document = new TextDocument(Uri.file('/note.md'), 'markdown', 1, '# Note');
+    expect(is_diff_editor(Object.assign(new TextEditor(document, []), { viewColumn: undefined }) as any)).toBe(true);
+  });
+
   it('honors decoration opt-in for real diffs', () => {
     const document = new TextDocument(Uri.parse('git:/note.md'), 'markdown', 1, '# Note');
     expect(shouldSkipInDiffView(document as any)).toBe(true);
