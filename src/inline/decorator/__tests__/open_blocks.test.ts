@@ -24,4 +24,12 @@ describe('OpenBlocks', () => {
     editor.selections = [new Selection(at(13), at(2))];
     expect([...open_blocks.get(editor, blocks)]).toEqual([12]);
   });
+
+  it('opens the block holding both ends of a selection, e.g. a Find match', () => {
+    const open_blocks = new OpenBlocks();
+    const editor = { selections: [new Selection(at(0), at(0))] } as any;
+    open_blocks.get(editor, blocks);
+    editor.selections = [new Selection(at(6), { line: 6, character: 5 })];
+    expect([...open_blocks.get(editor, blocks)]).toEqual([4]);
+  });
 });

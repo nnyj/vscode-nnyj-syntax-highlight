@@ -2,6 +2,25 @@
 
 - [README](../README.md) covers features, settings, build commands, installation, and known limitations.
 
+## Change rules
+
+- **Small surface:**
+  - Fix by removing state first. A new per-editor map, timer or retry needs a reason in its comment.
+  - Each fact has one owner. The workbench patch owns hidden rows, the extension owns what renders.
+  - Never derive render state from `visibleRanges`. A render moves the viewport, which loops.
+
+- **Fallback:**
+  - Patched workbench is the main path. Without it, plain decorations, no new workarounds for unpatched builds.
+  - Running workbench without the current patch marker: tables use decorations, see `workbenchHidesRows`.
+
+- **Workbench patch:**
+  - Changed `vscode_workbench_patch.js`: bump `workbench_patch/package.json` version, the extension reruns the script on it.
+  - Anchors match exactly once, the script fails on 0 or 2 matches.
+
+- **Checks:**
+  - Each inset bug fix adds an `inset_check.py` scenario that fails on the old code.
+  - Do not add tests that only check mocks.
+
 ## Ownership
 
 | Path                                               | Responsibility                                                 |
@@ -44,13 +63,14 @@
   - An inset disposed by VS Code triggers one more render per key while its editor shows.
   - A wheel gesture stays routed to the inset iframe after it scrolls away from the pointer. Insets forward wheel events, which stalls.
 
-- Table folds, no fold state API, `visibleRanges` is the only signal:
-  - `editor.fold` reaches only the focused code editor widget, e.g. the Debug Console input, else the active editor.
-  - Background editor: a table whose rows show stays source until the editor is active, e.g. after an external write.
-  - Missed fold: retries once, then the table stays source until the next edit, cursor move or range request.
-  - VS Code restores saved folds after the first render and keeps a collapsed range after an edit breaks the table. Both unfold once the viewport shows them folded.
-  - Clear and dispose unfold only the active editor.
-  - Entering a table unfolds its rows, which can scroll the cursor away, so the cursor is revealed after.
+- Table rows:
+  - The inset html holds `data-zone-rows`, `zone_bridge` hides the rows with `setHiddenAreas` under the source `nnyj-table-rows`. Every editor, background and split ones too, hides its own.
+  - VS Code merges the sources, folds keep their own. VS Code keeps a source's ranges unmoved on edits, so `zone_bridge` resets them from model decorations on every content change.
+  - A model flush drops the hidden areas, `zone_bridge` sets them again with `force`.
+  - A disposed zone's rows show on the next frame, so a zone replaced in the same frame, e.g. after an edit above, leaves no gap. A cursor in the shown rows is revealed.
+  - VS Code keeps the scroll top when a zone above the viewport is added, resized or removed. `zone_bridge` scrolls along, so the text stays.
+  - VS Code leaves a cursor in hidden rows, e.g. set by Ctrl+G or Find. A selection with both ends in a table shows its source.
+  - Tables render as insets only when the running workbench holds the `nnyj-table-rows` marker, read once at activation.
 
 - Background editors render through `Decorator.redrawUnfocused`. Mermaid render tokens are per editor, so these renders keep the active editor's render.
 - Mermaid decorations use one SVG slice per code block line, a single tall image vanishes once its first line scrolls off.

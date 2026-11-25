@@ -11,7 +11,6 @@ import { processSvg } from './mermaid/svg-processor';
 import { registerEventHandlers } from './registration/register-event-handlers';
 import { registerProviders } from './registration/register-providers';
 import { disposeLogger } from './logging';
-import { FILE_BACKED_MARKDOWN_SELECTOR } from './language-support';
 
 /**
  * Public API exposed via `vscode.extensions.getExtension(id).exports`.
@@ -47,7 +46,6 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     createToggleDecorationsCommand(decorator),
     createNavigateToAnchorCommand(),
     registerCodeBlockCopy(parseCache, () => decorator.updateDecorationsForSelection()),
-    vscode.languages.registerFoldingRangeProvider(FILE_BACKED_MARKDOWN_SELECTOR, decorator.tableCoordinator.foldingProvider),
   ];
 
   context.subscriptions.push(

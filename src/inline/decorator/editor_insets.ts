@@ -9,6 +9,7 @@ import { logWarn } from '../logging';
  * zone for, onClick the `data-cell` of a double-clicked element, onLink the `data-href` of a clicked link.
  * A `data-visible-right` element in the body is capped to the editor's visible area inside the webview, since the
  * zone spans the editor's scroll width. onVisibleRight gets the new right edge in px when it moves over 4px.
+ * hiddenRows: lines below `line` the patched workbench hides while the inset shows.
  */
 export type InsetSpec = {
   line: number;
@@ -20,6 +21,7 @@ export type InsetSpec = {
   onClick?: (cell: string) => void;
   onLink?: (href: string) => void;
   onVisibleRight?: (right: number) => void;
+  hiddenRows?: number;
 };
 
 /** Companion extension in workbench_patch/, wraps the proposed editorInsets API that the Marketplace rejects. */
@@ -186,18 +188,20 @@ export class EditorInsets {
 }
 
 /**
- * Blocks shown as source instead of their inset, by start line. Only empty cursors open or close a block: a non-empty
- * selection, e.g. a mouse drag, Shift+arrow or Ctrl+A, keeps the last state, so selecting never changes line heights.
+ * Blocks shown as source instead of their inset, by start line. A selection with both ends in a block opens it, e.g. an
+ * empty cursor or a Find match. A selection reaching out of a block, e.g. a mouse drag, Shift+arrow or Ctrl+A, keeps the
+ * last state, so selecting never changes line heights.
  */
 export class OpenBlocks {
   private open = new WeakMap<TextEditor, Set<number>>();
 
   get(editor: TextEditor, blocks: readonly { startLine: number; endLine: number }[]): Set<number> {
+    const holds = (block: { startLine: number; endLine: number }, line: number) => line >= block.startLine && line <= block.endLine;
+    const inside = editor.selections.map(selection =>
+      blocks.find(block => holds(block, selection.anchor.line) && holds(block, selection.active.line)));
     const kept = this.open.get(editor);
-    if (kept && editor.selections.some(selection => !selection.isEmpty)) return kept;
-    const lines = editor.selections.map(selection => selection.active.line);
-    const next = new Set(blocks.filter(block => lines.some(line => line >= block.startLine && line <= block.endLine))
-      .map(block => block.startLine));
+    if (kept && editor.selections.some((selection, index) => !selection.isEmpty && !inside[index])) return kept;
+    const next = new Set(inside.filter(block => block !== undefined).map(block => block.startLine));
     this.open.set(editor, next);
     return next;
   }
@@ -224,7 +228,8 @@ function buildInsetHtml(spec: InsetSpec): string {
   const nonce = randomBytes(16).toString('base64');
   return '<!DOCTYPE html><html><head>' +
     `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">` +
-    `</head><body style="margin: 0; padding: 0; overflow: hidden; ${insetFont()}">` +
+    // Patched workbench (inset resize) reads data-zone-rows from the html
+    `</head><body data-zone-rows="${spec.hiddenRows ?? 0}" style="margin: 0; padding: 0; overflow: hidden; ${insetFont()}">` +
     `<div style="padding-left: ${spec.indent}ch;">${spec.body}</div>` +
     `<script nonce="${nonce}">
       const vscode = acquireVsCodeApi();

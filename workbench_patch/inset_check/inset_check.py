@@ -37,6 +37,7 @@ SETTINGS = {
   "git.enabled": True,
   "git.openRepositoryInParentFolders": "never",
   "chat.disableAIFeatures": True,
+  "editor.showFoldingControls": "always",
 }
 
 BASE_TEXT = """# Title
@@ -81,26 +82,13 @@ Middle text.
 Tail text.
 """
 
-RESTART_TEXT = """# Restart
-
-## Open
-
-| item | next step |
-| --- | --- |
-| first | photo the group names |
-| second | check the cabinet |
-
-End text.
-"""
-
-
 # Table at line 13, a drag from line 1 to the middle of the viewport crosses it.
 DRAG_TEXT = ("".join(f"Line {n} of prose above the table.\n" for n in range(12)) +
   "\n| Name | Value | Note |\n| --- | --- | --- |\n" +
   "".join(f"| row{n} | {n} | a longer note cell {n} |\n" for n in range(8)) +
   "\n" + "".join(f"Line {n} of prose below the table.\n" for n in range(80)))
 
-# Table on the last lines, Ctrl+A ends the selection in its folded rows.
+# Table on the last lines, Ctrl+A ends the selection in its hidden rows.
 END_TABLE_TEXT = "# End\n\nText.\n\n| a | b |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |\n"
 
 
@@ -410,6 +398,16 @@ def rows_hidden(info, table):
   return not rows_visible(info, table)
 
 
+def hidden_lines(info):
+  """Lines missing between the visible ranges."""
+  visible = info["visible"]
+  return [line for (_, end), (start, _) in zip(visible, visible[1:]) for line in range(end + 1, start)]
+
+
+def table_rows(text):
+  return [line for first, last in table_ranges(text) for line in range(first + 1, last + 1)]
+
+
 def first_table(info):
   return table_ranges(info["text"])[0]
 
@@ -445,7 +443,7 @@ def check_cursor_in_out(vsc):
   vsc.set_cursor(0)
   info = wait_for(lambda: vsc.editor_info(path), lambda value: rows_hidden(value, table))
   zones = wait_for(vsc.zone_count, lambda count: count == 1)
-  report("cursor out refolds", rows_hidden(info, table) and zones == 1,
+  report("cursor out hides rows", rows_hidden(info, table) and zones == 1,
     "rows hidden, 1 zone", f"visible {info['visible']}, {zones} zones")
 
 
@@ -502,25 +500,46 @@ def check_external_edits(vsc):
           double_at = None
         time.sleep(0.2)
       loaded = synced["text"].replace("\r\n", "\n") == text
-      report(f"external_edit {focus} {name}", loaded and double_at is None,
-        "editor shows the edit, no zone above visible rows",
-        f"loaded {loaded}, zones above visible rows {double_at}")
+      hidden = hidden_lines(vsc.editor_info(path))
+      report(f"external_edit {focus} {name}", loaded and double_at is None and hidden == table_rows(text),
+        f"editor shows the edit, no zone above visible rows, hidden {table_rows(text)}",
+        f"loaded {loaded}, zones above visible rows {double_at}, hidden {hidden}")
     vsc.ext("globalThis.panel?.dispose(); return 1")
 
 
-def check_reopen_on_folded_header(vsc):
+def check_background_scroll(vsc):
+  """File shown without focus renders its table as an inset, a wheel scroll past it must not change the layout."""
   vsc.close_all()
-  path = vsc.new_file(RESTART_TEXT)
-  vsc.open_file(path, line=0)
-  vsc.focus_editor()
-  table = table_ranges(RESTART_TEXT)[0]
-  wait_for(lambda: vsc.editor_info(path), lambda info: rows_hidden(info, table))
-  vsc.close_all()
-  time.sleep(1.0)
-  vsc.open_file(path, line=table[0])
-  info = wait_for(lambda: vsc.editor_info(path), lambda value: rows_visible(value, table), 2.0)
-  report("reopen on folded header", rows_visible(info, table),
-    f"rows {table} visible within 2 s", f"visible {info['visible']}")
+  vsc.open_file(vsc.new_file("# Other\n"), column=1)
+  focused = open_panel_and_click(vsc)
+  path = vsc.new_file(DRAG_TEXT)
+  vsc.ext(f"""
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file({json.dumps(path.as_posix())}))
+    await vscode.window.showTextDocument(doc, {{ viewColumn: 1, preserveFocus: true, preview: false }})
+    return 1""")
+  table = table_ranges(DRAG_TEXT)[0]
+  info = wait_for(lambda: vsc.editor_info(path), lambda value: value is not None and rows_hidden(value, table))
+  zones = wait_for(vsc.zone_count, lambda count: count == 1)
+  report("background editor renders inset", focused and rows_hidden(info, table) and zones == 1,
+    "panel focused, rows hidden, 1 zone", f"panel {focused}, visible {info and info['visible']}, {zones} zones")
+  box = vsc.page.evaluate(SAMPLER_JS, path.name)
+  vsc.page.evaluate(SAMPLER_STOP_JS)
+  vsc.page.mouse.move(box["left"] + 100, (box["top"] + box["bottom"]) / 2)
+  for _ in range(40):
+    visible = vsc.editor_info(path)["visible"]
+    if visible and visible[0][0] >= table[0] + 3:
+      break
+    vsc.page.mouse.wheel(0, 20)
+    time.sleep(0.15)
+  time.sleep(0.5)
+  vsc.page.evaluate(SAMPLER_JS, path.name)
+  time.sleep(3.0)
+  samples = vsc.page.evaluate(SAMPLER_STOP_JS)
+  changes = lambda key: sum(1 for a, b in zip(samples, samples[1:]) if a[key] != b[key])
+  panel_active = vsc.ext("return globalThis.panel.active")
+  report("background scroll past table settles", focused and panel_active and changes("below") == 0 and changes("zones") == 0,
+    "panel focused, 0 layout and 0 inset changes in 3 s", f"panel {panel_active}, {changes('below')} layout, {changes('zones')} inset")
+  vsc.ext("globalThis.panel?.dispose(); return 1")
 
 
 def check_arrows(vsc):
@@ -571,6 +590,91 @@ def check_goto_line(vsc):
     "cursor on line 199 and line 199 visible", f"cursor {info['active'][0]}, visible {info['visible']}")
 
 
+def check_find_opens(vsc):
+  vsc.close_all()
+  path = vsc.new_file(BASE_TEXT)
+  vsc.open_file(path)
+  vsc.focus_editor()
+  wait_for(vsc.zone_count, lambda count: count > 0)
+  table = first_table(vsc.editor_info(path))
+  vsc.command("editor.actions.findWithArgs", {"searchString": "alpha"})
+  time.sleep(0.5)
+  vsc.press("Enter")
+  info = wait_for(lambda: vsc.editor_info(path), lambda value: rows_visible(value, table))
+  zones = wait_for(vsc.zone_count, lambda count: count == 0)
+  report("find match in table shows source", rows_visible(info, table) and zones == 0 and info["active"][0] == table[0] + 2,
+    f"rows visible, 0 zones, cursor on line {table[0] + 2}", f"visible {info['visible']}, {zones} zones, cursor {info['active']}")
+  vsc.press("Escape")
+
+
+def check_folding(vsc):
+  """Folds keep their own hidden lines, the table rows stay hidden after every unfold and after a reopen."""
+  vsc.close_all()
+  path = vsc.new_file(BASE_TEXT)
+  vsc.open_file(path)
+  vsc.focus_editor()
+  wait_for(vsc.zone_count, lambda count: count > 0)
+  rows = table_rows(BASE_TEXT)
+  section_b = BASE_TEXT.split("\n").index("## Section B")
+  for name, fold, unfold in (
+      ("section", ("editor.fold", {"levels": 1, "selectionLines": [4]}), ("editor.unfold", {"levels": 1, "selectionLines": [4]})),
+      ("all", ("editor.foldAll", None), ("editor.unfoldAll", None))):
+    vsc.command(*fold)
+    folded = wait_for(lambda: vsc.editor_info(path), lambda info: len(hidden_lines(info)) > len(rows) or info["visible"] == [[0, 0]])
+    vsc.command(*unfold)
+    info = wait_for(lambda: vsc.editor_info(path), lambda value: hidden_lines(value) == rows)
+    zones = wait_for(vsc.zone_count, lambda count: count == 1)
+    report(f"fold {name} then unfold keeps rows hidden", hidden_lines(info) == rows and zones == 1 and folded["visible"] != info["visible"],
+      f"folded, then hidden {rows}, 1 zone", f"folded {folded['visible']}, then hidden {hidden_lines(info)}, {zones} zones")
+  vsc.command("editor.fold", {"levels": 1, "selectionLines": [section_b]})
+  expected = [[0, rows[0] - 1], [rows[-1] + 1, section_b]]
+  wait_for(lambda: vsc.editor_info(path), lambda info: info["visible"] == expected)
+  vsc.close_all()
+  time.sleep(1.0)
+  vsc.open_file(path)
+  vsc.focus_editor()
+  info = wait_for(lambda: vsc.editor_info(path), lambda value: value["visible"] == expected)
+  report("reopen keeps saved fold and table rows hidden", info["visible"] == expected,
+    f"visible {expected}", f"visible {info['visible']}")
+  vsc.command("editor.unfoldAll")
+
+
+ARROW_JS = r"""
+(line) => {
+  const overlay = [...document.querySelectorAll('.monaco-editor .margin-view-overlays > div')]
+    .find(div => div.querySelector('.line-numbers')?.textContent.trim() === String(line));
+  const arrow = overlay?.querySelector('.cldr');
+  if (!arrow) return null;
+  const rect = arrow.getBoundingClientRect();
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+}
+"""
+
+
+def check_alt_click_fold_others(vsc):
+  """Alt+click on a section fold arrow folds the other sections, the table rows stay hidden."""
+  vsc.close_all()
+  path = vsc.new_file(BASE_TEXT)
+  vsc.open_file(path)
+  vsc.focus_editor()
+  wait_for(vsc.zone_count, lambda count: count > 0)
+  lines = BASE_TEXT.split("\n")
+  section_b = lines.index("## Section B")
+  arrow = wait_for(lambda: vsc.page.evaluate(ARROW_JS, 5), lambda value: value is not None)
+  if arrow is None:
+    report("alt click folds others", False, "fold arrow on line 5", "no arrow")
+    return
+  vsc.page.mouse.move(arrow["x"], arrow["y"])
+  vsc.page.keyboard.down("Alt")
+  vsc.page.mouse.click(arrow["x"], arrow["y"])
+  vsc.page.keyboard.up("Alt")
+  rows = table_rows(BASE_TEXT)
+  expected = [[0, rows[0] - 1], [rows[-1] + 1, section_b]]
+  info = wait_for(lambda: vsc.editor_info(path), lambda value: value["visible"] == expected)
+  report("alt click folds others", info["visible"] == expected, f"visible {expected}", f"visible {info['visible']}")
+  vsc.command("editor.unfoldAll")
+
+
 def check_broken_table(vsc):
   vsc.close_all()
   path = vsc.new_file(BASE_TEXT)
@@ -585,8 +689,33 @@ def check_broken_table(vsc):
     return 1""")
   info = wait_for(lambda: vsc.editor_info(path), lambda value: rows_visible(value, table), 3.0)
   zones = wait_for(vsc.zone_count, lambda count: count == 0, 3.0)
-  report("broken table unfolds", rows_visible(info, table) and zones == 0,
+  report("broken table shows rows", rows_visible(info, table) and zones == 0,
     "rows visible, 0 zones", f"visible {info['visible']}, {zones} zones")
+
+
+def check_above_viewport(vsc):
+  """A table above the viewport shows its source and renders again, the top visible line stays."""
+  text = "# Above\n\nIntro.\n\n| A | B |\n| - | - |\n" + "".join(f"| a{n} | b{n} |\n" for n in range(6)) + "\n" + \
+    "".join(f"Prose line {n}\n" for n in range(200))
+  vsc.close_all()
+  path = vsc.new_file(text)
+  vsc.open_file(path)
+  vsc.focus_editor()
+  wait_for(vsc.zone_count, lambda count: count > 0)
+  vsc.ext("""const e = vscode.window.activeTextEditor
+    e.revealRange(new vscode.Range(100, 0, 100, 0), vscode.TextEditorRevealType.AtTop); return 1""")
+  time.sleep(1.0)
+  header = table_ranges(text)[0][0]
+  first = lambda: vsc.editor_info(path)["visible"][0][0]
+  for step, edit in (("open", f"b.insert(e.document.lineAt({header}).range.end, ' x |')"),
+      ("render", f"b.delete(new vscode.Range({header}, e.document.lineAt({header}).text.length - 4, {header}, e.document.lineAt({header}).text.length))")):
+    before = first()
+    vsc.ext(f"const e = vscode.window.activeTextEditor; await e.edit(b => {edit}); return 1")
+    seen = set()
+    deadline = time.time() + 1.5
+    while time.time() < deadline:
+      seen.add(first())
+    report(f"table above viewport {step} keeps top line", seen == {before}, f"top line {before}", f"top lines {sorted(seen)}")
 
 
 def check_split(vsc):
@@ -640,7 +769,7 @@ def check_drag_select(vsc):
   time.sleep(1.0)
   info = vsc.editor_info(path)
   zones = vsc.zone_count()
-  report("shift down through table keeps fold", rows_hidden(info, table) and zones == 1 and info["active"][0] > table[1],
+  report("shift down through table keeps inset", rows_hidden(info, table) and zones == 1 and info["active"][0] > table[1],
     f"rows hidden, 1 zone, cursor below line {table[1]}", f"visible {info['visible']}, {zones} zones, cursor {info['active']}")
   copied = vsc.ext("""
     const before = await vscode.env.clipboard.readText()
@@ -648,7 +777,7 @@ def check_drag_select(vsc):
     const text = await vscode.env.clipboard.readText()
     await vscode.env.clipboard.writeText(before)
     return text""")
-  report("copy across folded table has rows", "| row7 | 7 |" in copied and "| row0 | 0 |" in copied,
+  report("copy across hidden rows has rows", "| row7 | 7 |" in copied and "| row0 | 0 |" in copied,
     "copied text holds rows 0 and 7", repr(copied[:80]))
 
   vsc.set_cursor(0)
@@ -658,7 +787,7 @@ def check_drag_select(vsc):
   time.sleep(1.0)
   info = vsc.editor_info(path)
   zones = vsc.zone_count()
-  report("select all keeps fold", rows_hidden(info, table) and zones == 1, "rows hidden, 1 zone",
+  report("select all keeps inset", rows_hidden(info, table) and zones == 1, "rows hidden, 1 zone",
     f"visible {info['visible']}, {zones} zones")
 
   vsc.close_all()
@@ -700,8 +829,10 @@ def check_drag_diff(vsc):
 
 
 SCENARIOS = [
-  check_render, check_cursor_in_out, check_external_edits, check_reopen_on_folded_header,
-  check_arrows, check_goto_line, check_broken_table, check_split, check_drag_select, check_drag_diff,
+  check_render, check_cursor_in_out, check_external_edits, check_background_scroll, check_arrows, check_goto_line,
+  check_find_opens, check_folding, check_alt_click_fold_others, check_broken_table, check_above_viewport, check_split,
+  check_drag_select,
+  check_drag_diff,
 ]
 
 

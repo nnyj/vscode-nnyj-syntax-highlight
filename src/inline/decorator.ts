@@ -351,7 +351,7 @@ export class Decorator {
     // Apply decorations
     this.applyDecorations(filtered);
     this.imageCoordinator.update(this.activeEditor, imageBlocks, text);
-    this.tableCoordinator.update(this.activeEditor, renderedTables, tableBlocks);
+    this.tableCoordinator.update(this.activeEditor, renderedTables);
     if (config.math.enabled() && mathRegions.length > 0) {
       this.applyMathDecorations(mathRegions.filter(region => !scopes.some(scope =>
         scope.kind === 'table' && scope.startPos <= region.startPos && scope.endPos >= region.endPos)), text);

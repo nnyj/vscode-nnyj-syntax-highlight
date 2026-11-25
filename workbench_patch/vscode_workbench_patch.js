@@ -1,5 +1,5 @@
 // Patches the VS Code workbench bundle. Run with VS Code closed or reload after.
-// The extension in this folder reruns it on the first start of each new VS Code version.
+// The extension in this folder reruns it on the first start of each new VS Code or extension version.
 // Patches start from the pristine .bak files, so a changed patch replaces the old one. Reruns write nothing.
 // Restore: copy workbench.desktop.main.js.bak over workbench.desktop.main.js and product.json.bak over product.json.
 // Usage: node vscode_workbench_patch.js [install dir], default the user install of VS Code.
@@ -13,7 +13,6 @@ const workbench_rel = path.join("out", "vs", "workbench", "workbench.desktop.mai
 const checksum_key = "vs/workbench/workbench.desktop.main.js"
 const pointer_none = 'this.domNode.style.pointerEvents="none",'
 const pipe_test = "/^\\s*\\|/.test("
-const table_region_test = 'this.editor.getModel().getLanguageId()==="markdown"'
 
 const patches = [
   {
@@ -36,33 +35,13 @@ const patches = [
     replace: (_, head, line, tail, _previous, slot) => `${head}${pipe_test}${line})?${slot}=null:${tail}`,
   },
   {
-    // Inset webviews size their own zone and get mouse input relayed, see zone_bridge.
+    // Inset webviews size their own zone, hide the table rows below it and get mouse input relayed, see zone_bridge.
     // Anchored on the EditorWebviewZone constructor end, the webview mount before dispose(), and on the zone _id it uses.
     name: "inset resize",
     re: /((\w+)\.mountTo\(this\.domNode,\w+\(\w+\.getDomNode\(\)\)\))\}dispose\(\)\{(this\.editor\.changeViewZones\(\w+=>this\._id&&)/g,
     marker: "zoneHeight",
     replace: (_, head, webview, tail) =>
       `${head},(${zone_bridge.toString()})(this,${webview})}dispose(){this.zoneAbort.abort();${tail}`,
-  },
-  {
-    // Fold commands with explicit selectionLines keep the scroll position, unpatched they scroll to an off-screen cursor.
-    // nnyj-syntax-highlight folds tables under their insets while scrolling and checks this marker.
-    // Anchored on FoldingAction.runEditorCommand, the reveal after invoke.
-    name: "fold no reveal",
-    re: /(this\.invoke\(\w+,\w+,\w+,(\w+),\w+\);let (\w+)=\w+\.getSelection\(\);\3&&)(\w+\.reveal\(\3\.getStartPosition\(\)\))/g,
-    marker: "selectionLines&&",
-    replace: (_, head, args, _selection, tail) => `${head}!${args}?.selectionLines&&${tail}`,
-  },
-  {
-    // Alt+click on a fold arrow unfolds the other folded regions, and folds the other regions only when none is folded.
-    // nnyj-syntax-highlight keeps every rendered table folded, so the click never folded. Markdown table regions
-    // are left out of the other regions, the click then neither counts nor toggles them.
-    // Anchored on FoldingController.onEditorMouseUp, the altKey filter for surrounding regions.
-    name: "fold others skips tables",
-    re: /(let \w+=(\w+)=>!\2\.containedBy\((\w+)\)&&!\3\.containedBy\(\2\))(,\w+=\w+\.getRegionsInside\(null,\w+\))/g,
-    marker: table_region_test,
-    replace: (_, head, region, _clicked, tail) =>
-      `${head}&&!(${table_region_test}&&${pipe_test}this.editor.getModel().getLineContent(${region}.startLineNumber)))${tail}`,
   },
 ]
 
@@ -76,6 +55,8 @@ const patches = [
 //   zoneSelection: selected text, Ctrl+C copies it while set. A press outside the zone, any other key and an editor
 //     selection change clear it.
 // Every zone listens on the shared editor node, only the zone holding the selection acts on a key or copy.
+// Html with data-zone-rows="N" hides the N lines below the zone line, the rows of a Markdown table, see create_table_rows.
+// Read from the html, not a message, so the rows hide in the frame the zone shows.
 function zone_bridge(zone, webview) {
   zone.zoneAbort = new AbortController()
   const signal = zone.zoneAbort.signal
@@ -157,15 +138,82 @@ function zone_bridge(zone, webview) {
     }
     loaded_src = src
   }, { signal })
+  // VS Code keeps the scroll top when a zone above the viewport changes height or goes, which moves the text: scroll along
+  let zone_px = 0
+  const resized = (px) => {
+    if (zone.afterLineNumber + 1 < (zone.editor.getVisibleRanges()[0]?.startLineNumber ?? 0)) {
+      zone.editor.setScrollTop(zone.editor.getScrollTop() + px - zone_px)
+    }
+    zone_px = px
+  }
+  resized(zone.heightInLines * (zone.editor.getLineHeightForPosition?.({ lineNumber: zone.afterLineNumber, column: 1 }) ?? 0))
+  const table_rows = zone.editor.nnyjTableRows ??= create_table_rows(zone.editor)
+  let rows
+  const set_html = webview.setHtml.bind(webview)
+  webview.setHtml = (html) => {
+    const count = Number(/data-zone-rows="(\d+)"/.exec(html)?.[1])
+    if (count > 0 && !signal.aborted) {
+      rows ??= zone.editor.createDecorationsCollection()
+      const model = zone.editor.getModel()
+      const last = Math.min(zone.afterLineNumber + count, model.getLineCount())
+      table_rows.track(rows, { startLineNumber: zone.afterLineNumber + 1, startColumn: 1, endLineNumber: last,
+        endColumn: model.getLineMaxColumn(last) })
+    }
+    set_html(html)
+  }
+  // Released on the next frame: a zone replaced in this frame, e.g. its key holds the line and an edit above moved it,
+  // hides the rows again before then
+  signal.addEventListener("abort", () => {
+    resized(0)
+    if (rows) host_window.requestAnimationFrame(() => table_rows.release(rows))
+  })
   webview.onMessage(({ message }) => {
     if (!message || signal.aborted) return
     if (message.zoneHeight > 0 && zone._id) {
       zone.heightInPx = message.zoneHeight
       zone.editor.changeViewZones((accessor) => accessor.layoutZone(zone._id))
+      resized(message.zoneHeight)
     }
     if (message.zoneMouse) relay = true
     if (typeof message.zoneSelection === "string") selection = message.zoneSelection
   })
+
+  // Hidden table rows of one editor, under one source key that VS Code merges with the folding ranges.
+  // Each table's rows are a model decoration, so they stay on their text across edits until the zone is replaced.
+  // Shared by the editor's zones, a split editor has its own.
+  function create_table_rows(editor) {
+    const options = { description: "nnyj-table-rows", stickiness: 1 }
+    // Decoration collection to its last range, a model flush drops the decorations
+    const tracked = new Map()
+    const apply = (force) => {
+      for (const [rows, range] of tracked) tracked.set(rows, rows.getRange(0) ?? range)
+      // A range collapsed by an edit over the whole table hides nothing, the extension removes the zone
+      const ranges = [...tracked.keys()].map((rows) => rows.getRange(0)).filter((range) => range && !range.isEmpty())
+        .sort((a, b) => a.startLineNumber - b.startLineNumber)
+      editor.setHiddenAreas(ranges, "nnyj-table-rows", force)
+    }
+    // VS Code keeps the ranges a source last set, other sources, e.g. folding, would merge them unmoved
+    editor.onDidChangeModelContent((event) => {
+      if (event.isFlush) for (const [rows, range] of tracked) rows.set([{ range, options }])
+      apply(event.isFlush)
+    })
+    return {
+      track(rows, range) {
+        rows.set([{ range, options }])
+        tracked.set(rows, range)
+        apply()
+      },
+      // The rows show again unless another zone hides them, a cursor in them is revealed
+      release(rows) {
+        const range = rows.getRange(0)
+        tracked.delete(rows)
+        rows.clear()
+        apply()
+        const position = editor.getPosition()
+        if (range && position && range.containsPosition(position)) editor.revealPositionInCenterIfOutsideViewport(position)
+      },
+    }
+  }
 }
 
 function checksum(buffer) {

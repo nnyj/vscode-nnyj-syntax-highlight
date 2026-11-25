@@ -12,9 +12,10 @@ function activate(context) {
   }
 }
 
-// Reruns vscode_workbench_patch.js on the first start of each new VS Code version, on the install running this extension
+// Reruns vscode_workbench_patch.js on the first start of each new VS Code or extension version, on the install running this extension
 function workbench_patch(context) {
-  if (context.globalState.get('patched_version') === vscode.version) return
+  const patched_version = `${vscode.version}|${context.extension.packageJSON.version}`
+  if (context.globalState.get('patched_version') === patched_version) return
   const script_path = path.join(context.extensionPath, 'vscode_workbench_patch.js')
   const install_dir = path.dirname(process.execPath)
   // ELECTRON_RUN_AS_NODE makes Code.exe run the script as plain node, so no node install is needed
@@ -24,7 +25,7 @@ function workbench_patch(context) {
       vscode.window.showErrorMessage(`Workbench patch failed: ${stderr || error.message}`)
       return
     }
-    await context.globalState.update('patched_version', vscode.version)
+    await context.globalState.update('patched_version', patched_version)
     if (!stdout.includes(': written')) return
     // The main process caches product.json checksums at launch, so a window reload still shows the corrupt install banner
     const message = `Workbench patched for VS Code ${vscode.version}, quit and reopen to load it`

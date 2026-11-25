@@ -26,14 +26,6 @@ export function registerEventHandlers(
     vscode.window.onDidChangeTextEditorViewColumn(() => {
       decorator.updateDecorationsForSelection();
     }),
-    // Fires on fold and unfold too, see TableUpdateCoordinator.refold
-    vscode.window.onDidChangeTextEditorVisibleRanges((event) => {
-      // An external write unfolds table rows after its document change event
-      if (event.textEditor !== vscode.window.activeTextEditor && decorator.tableCoordinator.rowsShownChanged(event.textEditor)) {
-        decorator.redrawUnfocused([event.textEditor]);
-      }
-      decorator.tableCoordinator.refold(event.textEditor);
-    }),
     vscode.window.onDidChangeTextEditorSelection((event) => {
       if (decorator.tableCoordinator.enterTable(event)) {
         return;
@@ -41,7 +33,6 @@ export function registerEventHandlers(
       decorator.updateDecorationsForSelection(event.kind);
     }),
     vscode.workspace.onDidChangeTextDocument((event) => {
-      decorator.tableCoordinator.documentChanged(event);
       // Debounced, then redraws the document's other editors too
       if (event.document === vscode.window.activeTextEditor?.document) {
         decorator.updateDecorationsForDocument(event);
@@ -108,11 +99,6 @@ export function registerEventHandlers(
 
       if (event.affectsConfiguration('markdownInlineEditor.colors')) {
         decorator.recreateColorDependentTypes();
-      }
-
-      // Tables render only with provider folding, see TableUpdateCoordinator.getRenderedTables
-      if (event.affectsConfiguration('editor.folding') || event.affectsConfiguration('editor.foldingStrategy')) {
-        decorator.updateDecorationsForSelection();
       }
 
       if (event.affectsConfiguration('editor.fontSize') || event.affectsConfiguration('editor.fontFamily') ||
