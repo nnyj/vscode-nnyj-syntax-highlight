@@ -48,6 +48,11 @@ export function getForgeContext(rootUri: vscode.Uri): ForgeContextResult {
   let fromGit: GitRemoteParsed | undefined;
   if (gitRemoteCache.has(fsPath)) {
     fromGit = gitRemoteCache.get(fsPath) ?? undefined;
+  } else if (rootUri.scheme !== "file") {
+    // A WSL root seen from the Windows extension host, see extensionKind: git and fs cannot reach it.
+    // Read .git/config through workspace.fs, links use the default host until it arrives.
+    gitRemoteCache.set(fsPath, null);
+    readRemoteGitConfig(rootUri).then((parsed) => gitRemoteCache.set(fsPath, parsed ?? null));
   } else {
     fromGit = detectGitRemote(fsPath);
     gitRemoteCache.set(fsPath, fromGit ?? null);
@@ -168,19 +173,30 @@ function issuePathSegmentForHost(host: string): string {
   return host.toLowerCase().includes("gitlab") ? "-/issues" : "issues";
 }
 
+async function readRemoteGitConfig(
+  rootUri: vscode.Uri,
+): Promise<GitRemoteParsed | undefined> {
+  try {
+    const bytes = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(rootUri, ".git", "config"));
+    return parseGitConfig(new TextDecoder().decode(bytes));
+  } catch {
+    return undefined;
+  }
+}
+
+function parseGitConfig(content: string): GitRemoteParsed | undefined {
+  const urlMatch = content.match(
+    /\[remote\s+"origin"\][\s\S]*?url\s*=\s*(.+)/,
+  );
+  return urlMatch ? parseGitRemoteUrl(urlMatch[1].trim()) : undefined;
+}
+
 function tryReadGitConfig(
   workspaceFsPath: string,
 ): GitRemoteParsed | undefined {
   try {
     const configPath = path.join(workspaceFsPath, ".git", "config");
-    const content = fs.readFileSync(configPath, "utf8");
-    const urlMatch = content.match(
-      /\[remote\s+"origin"\][\s\S]*?url\s*=\s*(.+)/,
-    );
-    if (urlMatch) {
-      const url = urlMatch[1].trim();
-      return parseGitRemoteUrl(url);
-    }
+    return parseGitConfig(fs.readFileSync(configPath, "utf8"));
   } catch {
     // ignore
   }

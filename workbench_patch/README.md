@@ -9,6 +9,7 @@ It wraps the proposed `editorInsets` API, which the Marketplace rejects, so it s
 - Install `nnyj-workbench-patch-*.vsix` from the GitHub release, or run `npm run install:patch`.
 - `Preferences: Configure Runtime Arguments` opens `argv.json`, add `"enable-proposed-api": ["nnyj.nnyj-workbench-patch"]`.
 - Fully quit and reopen VS Code.
+- WSL and other remote windows: both extensions run on the Windows side, install them there, not in WSL.
 
 ## Workbench patch
 

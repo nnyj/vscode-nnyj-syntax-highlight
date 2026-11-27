@@ -93,6 +93,7 @@ Unlabeled ` ``` ` blocks can be colored via the `markup.fenced_code` scope (3-se
 
 - Identifier: `nnyj.nnyj-syntax-highlight`.
 - Disable or uninstall `CodeSmith.markdown-inline-editor-vscode` to prevent duplicate rendering.
+- WSL and other remote windows: install on the Windows side, the extension prefers it for the workbench patch.
 
 ```sh
 npm ci

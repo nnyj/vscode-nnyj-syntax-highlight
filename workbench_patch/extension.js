@@ -5,8 +5,8 @@ const vscode = require('vscode')
 // API for nnyj.nnyj-syntax-highlight, which activates this extension on demand through getExtension().activate().
 // The proposed API throws here unless argv.json has "enable-proposed-api": ["nnyj.nnyj-workbench-patch"].
 function activate(context) {
-  // A remote extension host runs on another machine, it cannot patch the local install
-  if (!vscode.env.remoteName) workbench_patch(context)
+  // Only the extension host beside the window can patch its install, in a WSL window too, see extensionKind
+  if (context.extension.extensionKind === vscode.ExtensionKind.UI) workbench_patch(context)
   return {
     createInset: (editor, line, height, options) => vscode.window.createWebviewTextEditorInset(editor, line, height, options),
   }

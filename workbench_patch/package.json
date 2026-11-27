@@ -2,7 +2,7 @@
   "name": "nnyj-workbench-patch",
   "displayName": "NNYJ Workbench Patch",
   "description": "Companion for NNYJ Syntax Highlight: full-size images and Mermaid diagrams below their Markdown lines, through the proposed editorInsets API. Reruns the workbench patch on each new VS Code version. Install from vsix, not published.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "nnyj",
   "engines": {
     "vscode": "^1.100.0"
@@ -13,6 +13,7 @@
     "url": "https://github.com/nnyj/vscode-nnyj-syntax-highlight"
   },
   "extensionKind": [
+    "ui",
     "workspace"
   ],
   "enabledApiProposals": [
